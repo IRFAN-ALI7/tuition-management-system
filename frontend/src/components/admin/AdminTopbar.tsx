@@ -2,7 +2,6 @@
 
 import type { RefObject } from "react";
 import NextImage from "next/image";
-import ThemeToggle from "@/components/ThemeToggle";
 import type { AdminProfile, Section, Batch } from "./types";
 
 type Props = {
@@ -126,7 +125,6 @@ export default function AdminTopbar({
       </label>
 
       <div className="flex items-center gap-3">
-        <ThemeToggle />
 
         <button
           className="relative flex h-9 w-9 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
