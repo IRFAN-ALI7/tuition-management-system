@@ -982,6 +982,32 @@ export default function Home() {
       );
     }
   };
+
+    
+const handleLogout = async () => {
+  setPageError("");
+  setNotice("");
+
+  try {
+    await api("/auth/logout", {
+      method: "POST",
+    });
+
+    clearRole();
+    setAuthenticated(false);
+    setAdminProfile(null);
+
+    router.replace("/admin/login");
+  } catch (error) {
+    setPageError(
+      error instanceof Error
+        ? error.message
+        : "Could not log out. Please try again."
+    );
+  }
+};
+
+
     const saveProfile = async () => {
     setPageError("");
     setNotice("");
@@ -1125,7 +1151,6 @@ export default function Home() {
         <AdminSidebar
           section={section}
           mobileMenu={mobileMenu}
-          adminProfile={adminProfile}
           setSection={setSection}
           setMobileMenu={setMobileMenu}
         />
@@ -1142,6 +1167,7 @@ export default function Home() {
             batches={batches}
             api={api}
             setStudentFilters={setStudentFilters}
+            onLogout={() => void handleLogout()}
           />
 
           <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">

@@ -1,7 +1,8 @@
+
 import { Router } from "express";
 import mongoose, { isValidObjectId, Types } from "mongoose";
-
 import bcrypt from "bcryptjs";
+
 import User from "../models/User.model";
 import Student from "../models/Student.model";
 import Batch from "../models/Batch.model";
@@ -16,6 +17,10 @@ import Notice from "../models/Notice.model";
 import { normalizePhone, normalizeText } from "../utils/normalization";
 
 const router = Router();
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 // Generate unique student ID: AA00, AA01, AA02...
 async function generateStudentId(): Promise<string> {
@@ -48,6 +53,7 @@ async function generateStudentId(): Promise<string> {
   return `${firstLetter}${secondLetter}${digits}`;
 }
 
+// GET ALL STUDENTS
 router.get("/", async (request, response, next) => {
   try {
     const requestedPage = Number.parseInt(
@@ -123,11 +129,7 @@ router.get("/", async (request, response, next) => {
     if (status === "inactive") match.active = false;
 
     if (q) {
-      const escaped = normalizeText(q).replace(
-        /[.*+?^${}()|[\]\\]/g,
-        "\\$&"
-      );
-
+      const escaped = escapeRegex(normalizeText(q));
       const normalizedPhone = normalizePhone(q);
 
       match.$or = [
@@ -137,10 +139,7 @@ router.get("/", async (request, response, next) => {
           ? [
               {
                 phoneKey: {
-                  $regex: normalizedPhone.replace(
-                    /[.*+?^${}()|[\]\\]/g,
-                    "\\$&"
-                  ),
+                  $regex: escapeRegex(normalizedPhone),
                 },
               },
             ]
@@ -266,6 +265,7 @@ router.get("/", async (request, response, next) => {
   }
 });
 
+// GET SINGLE STUDENT
 router.get("/:id", async (request, response, next) => {
   try {
     if (!isValidObjectId(request.params.id)) {
@@ -288,7 +288,7 @@ router.get("/:id", async (request, response, next) => {
   }
 });
 
-
+// CREATE STUDENT
 router.post("/", async (request, response, next) => {
   try {
     const body = request.body as Record<string, unknown>;
@@ -479,7 +479,7 @@ router.post("/", async (request, response, next) => {
         role: "student",
         studentId: student._id,
         active: studentActive,
-        mustChangePassword: true,
+        mustChangePassword: false,
       });
     } catch (userError) {
       // Remove Student if User creation fails.
@@ -504,7 +504,7 @@ router.post("/", async (request, response, next) => {
   }
 });
 
-
+// UPDATE STUDENT PROFILE
 router.patch("/:id", async (request, response, next) => {
   try {
     if (!isValidObjectId(request.params.id)) {
@@ -704,11 +704,39 @@ router.patch("/:id", async (request, response, next) => {
       updates.batchId = batchId || null;
     }
 
+    // Keep the linked student login account in sync with profile changes.
+    const linkedUser = await User.findOne({
+      studentId: current._id,
+      role: "student",
+    });
+
+    if (linkedUser) {
+      const duplicateUser = await User.findOne({
+        mobile: phone,
+        role: "student",
+        _id: { $ne: linkedUser._id },
+      }).lean();
+
+      if (duplicateUser) {
+        response.status(409).json({
+          error:
+            "Another student login account already uses this mobile number.",
+        });
+        return;
+      }
+    }
+
     const student = await Student.findByIdAndUpdate(
       current._id,
       updates,
       { new: true, runValidators: true }
     ).populate("batchId", "name startTime endTime active");
+
+    if (linkedUser) {
+      linkedUser.name = name;
+      linkedUser.mobile = phone;
+      await linkedUser.save();
+    }
 
     response.json({ student });
   } catch (error) {
@@ -716,46 +744,47 @@ router.patch("/:id", async (request, response, next) => {
   }
 });
 
-// Permanently delete student and all related records.
+// DELETE STUDENT
+// FeePayment and FeeLedger records are never permanently deleted here.
 router.delete("/:id", async (request, response, next) => {
   const session = await mongoose.startSession();
 
   try {
     if (!isValidObjectId(request.params.id)) {
-      response.status(400).json({
-        error: "Invalid student ID.",
-      });
+      response.status(400).json({ error: "Invalid student ID." });
       return;
     }
 
     const studentObjectId = new Types.ObjectId(request.params.id);
 
-   const deletedStudent: {
-  found: boolean;
-  studentId?: string;
-} = {
-  found: false,
-};
+    let studentFound = false;
+    let hasFinancialHistory = false;
+    let deletedStudentId: string | undefined;
 
     await session.withTransaction(async () => {
       const student = await Student.findById(studentObjectId)
-  .session(session)
-  .lean();
+        .session(session)
+        .lean();
 
-if (!student) {
-  return;
-}
+      if (!student) return;
 
-deletedStudent.found = true;
-deletedStudent.studentId = (student as any).studentId;
+      studentFound = true;
+      deletedStudentId = student.studentId;
 
-      await FeePayment.deleteMany({
-        studentId: studentObjectId,
-      }).session(session);
+      const [paymentCount, ledgerCount] = await Promise.all([
+        FeePayment.countDocuments({
+          studentId: studentObjectId,
+        }).session(session),
 
-      await FeeLedger.deleteMany({
-        studentId: studentObjectId,
-      }).session(session);
+        FeeLedger.countDocuments({
+          studentId: studentObjectId,
+        }).session(session),
+      ]);
+
+      if (paymentCount > 0 || ledgerCount > 0) {
+        hasFinancialHistory = true;
+        return;
+      }
 
       await Attendance.updateMany(
         { "records.studentId": studentObjectId },
@@ -786,21 +815,34 @@ deletedStudent.studentId = (student as any).studentId;
         studentId: studentObjectId,
       }).session(session);
 
+      await User.deleteOne({
+        studentId: studentObjectId,
+        role: "student",
+      }).session(session);
+
       await Student.deleteOne({
         _id: studentObjectId,
       }).session(session);
     });
 
-    if (!deletedStudent.found) {
+    if (!studentFound) {
       response.status(404).json({
         error: "Student not found.",
       });
       return;
     }
 
+    if (hasFinancialHistory) {
+      response.status(409).json({
+        error:
+          "This student has fee/payment history and cannot be deleted. Deactivate the student account instead.",
+      });
+      return;
+    }
+
     response.json({
-      message: "Student and all related records deleted successfully.",
-      studentId: deletedStudent.studentId,
+      message: "Student deleted successfully.",
+      studentId: deletedStudentId,
     });
   } catch (error) {
     next(error);
@@ -809,7 +851,71 @@ deletedStudent.studentId = (student as any).studentId;
   }
 });
 
+// ADMIN RESET STUDENT PASSWORD
+router.patch("/:id/reset-password", async (request, response, next) => {
+  try {
+    if (!isValidObjectId(request.params.id)) {
+      response.status(400).json({
+        error: "Invalid student ID.",
+      });
+      return;
+    }
 
+    const body = request.body as { password?: unknown };
+
+    const password =
+      typeof body.password === "string" ? body.password : "";
+
+    if (password.length < 8 || password.length > 128) {
+      response.status(400).json({
+        error: "Password must be between 8 and 128 characters.",
+      });
+      return;
+    }
+
+    if (Buffer.byteLength(password, "utf8") > 72) {
+      response.status(400).json({
+        error: "Password must not exceed 72 UTF-8 bytes.",
+      });
+      return;
+    }
+
+    const student = await Student.findById(request.params.id);
+
+    if (!student) {
+      response.status(404).json({
+        error: "Student not found.",
+      });
+      return;
+    }
+
+    const user = await User.findOne({
+      studentId: student._id,
+      role: "student",
+    });
+
+    if (!user) {
+      response.status(404).json({
+        error: "Student login account not found.",
+      });
+      return;
+    }
+
+    user.passwordHash = await bcrypt.hash(password, 12);
+    user.mustChangePassword = false;
+    user.sessionVersion = (user.sessionVersion ?? 0) + 1;
+
+    await user.save();
+
+    response.json({
+      message: "Student password reset successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ACTIVATE / DEACTIVATE STUDENT
 router.patch("/:id/active", async (request, response, next) => {
   const session = await mongoose.startSession();
 
@@ -858,6 +964,7 @@ router.patch("/:id/active", async (request, response, next) => {
 
       // Update student profile status.
       student.active = active;
+
       await student.save({ session });
 
       updatedStudent = student;
@@ -874,6 +981,7 @@ router.patch("/:id/active", async (request, response, next) => {
       message: active
         ? "Student account activated successfully."
         : "Student account deactivated successfully.",
+
       student: updatedStudent,
     });
   } catch (error) {
@@ -882,6 +990,5 @@ router.patch("/:id/active", async (request, response, next) => {
     await session.endSession();
   }
 });
-
 
 export default router;

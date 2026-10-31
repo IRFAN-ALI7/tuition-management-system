@@ -46,7 +46,10 @@ export default function AdminForgotPasswordPage() {
     return () => window.clearTimeout(timer);
   }, [cooldown]);
 
-  async function post(path: string, body: Record<string, string>) {
+  async function post(
+    path: string,
+    body: Record<string, string>
+  ) {
     const response = await fetch(
       `${API}/auth/password-reset/${path}`,
       {
@@ -67,7 +70,10 @@ export default function AdminForgotPasswordPage() {
       );
     }
 
-    return data as { message?: string; resetToken?: string };
+    return data as {
+      message?: string;
+      resetToken?: string;
+    };
   }
 
   async function requestOtp(
@@ -75,14 +81,19 @@ export default function AdminForgotPasswordPage() {
     resend = false
   ) {
     event?.preventDefault();
+
     setError("");
     setInfo("");
     setLoading(true);
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
       const data = await post(resend ? "resend" : "request", {
-        email,
+        email: normalizedEmail,
       });
+
+      setEmail(normalizedEmail);
 
       setInfo(
         data.message ??
@@ -105,6 +116,7 @@ export default function AdminForgotPasswordPage() {
 
   async function verifyOtp(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setError("");
     setInfo("");
     setLoading(true);
@@ -133,6 +145,7 @@ export default function AdminForgotPasswordPage() {
 
   async function resetPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     setError("");
     setInfo("");
 
@@ -141,8 +154,17 @@ export default function AdminForgotPasswordPage() {
       return;
     }
 
-    if (password.length < 12) {
-      setError("Use at least 12 characters for your new password.");
+    if (password.length < 12 || password.length > 128) {
+      setError("Password must be between 12 and 128 characters.");
+      return;
+    }
+
+    const passwordBytes = new TextEncoder().encode(password).length;
+
+    if (passwordBytes > 72) {
+      setError(
+        "Password must not exceed 72 UTF-8 bytes. Please use a shorter password."
+      );
       return;
     }
 
@@ -162,8 +184,13 @@ export default function AdminForgotPasswordPage() {
 
       setStep("success");
       setInfo("Password reset successfully.");
+      setPassword("");
+      setConfirmPassword("");
+      setResetToken("");
 
-      window.setTimeout(() => router.replace("/admin/login"), 1600);
+      window.setTimeout(() => {
+        router.replace("/admin/login");
+      }, 1600);
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -351,6 +378,8 @@ export default function AdminForgotPasswordPage() {
                 setStep("email");
                 setError("");
                 setInfo("");
+                setOtp("");
+                setCooldown(0);
               }}
             >
               Use a different email
@@ -394,6 +423,10 @@ export default function AdminForgotPasswordPage() {
                 placeholder="Enter the new password again"
               />
             </label>
+
+            <p className="text-xs leading-[1.5] text-[#777892] dark:text-[#aaa5bb]">
+              Use 12–128 characters. Passwords must not exceed 72 UTF-8 bytes.
+            </p>
 
             <button
               className={buttonClass}

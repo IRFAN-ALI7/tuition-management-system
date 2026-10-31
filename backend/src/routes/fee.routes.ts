@@ -34,12 +34,26 @@ async function ensureLedgersThrough(targetYear: number, targetMonth: number) {
   const existing = await FeeLedger.find({ studentId: { $in: students.map((student) => student._id) }, year: { $lte: targetYear } }).select("studentId year month").lean();
   const existingKeys = new Set(existing.map((ledger) => `${String(ledger.studentId)}-${ledger.year}-${ledger.month}`));
   let operations: Record<string, unknown>[] = [];
-  for (const student of students) {
-    const start = Math.max(studentStartMonth(student.admissionDate, student.createdAt) ?? target, monthSerial(2000, 1));
+for (const student of students) {
+  const monthlyFee = student.monthlyFees;
+
+  // Invalid or zero monthly fees ke liye ledger create nahi hoga.
+  if (
+    typeof monthlyFee !== "number" ||
+    !Number.isFinite(monthlyFee) ||
+    monthlyFee <= 0
+  ) {
+    continue;
+  }
+
+  const start = Math.max(
+    studentStartMonth(student.admissionDate, student.createdAt) ?? target,
+    monthSerial(2000, 1)
+  );
     for (let serial = start; serial <= target; serial += 1) {
       const { year, month } = fromSerial(serial);
       if (existingKeys.has(`${String(student._id)}-${year}-${month}`)) continue;
-      operations.push({ updateOne: { filter: { studentId: student._id, year, month }, update: { $setOnInsert: { studentId: student._id, year, month, feeAmount: roundMoney(student.monthlyFees), paidAmount: 0 } }, upsert: true } });
+      operations.push({ updateOne: { filter: { studentId: student._id, year, month }, update: { $setOnInsert: { studentId: student._id, year, month, feeAmount: roundMoney(monthlyFee), paidAmount: 0 } }, upsert: true } });
       if (operations.length >= 500) { await FeeLedger.bulkWrite(operations as any[], { ordered: false }); operations = []; }
     }
   }

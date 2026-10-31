@@ -1,4 +1,3 @@
-
 import { model, models, Schema } from "mongoose";
 
 export type UserRole = "admin" | "student";

@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { RefObject } from "react";
@@ -13,7 +14,7 @@ type Props = {
   setSection: (section: Section) => void;
   setMobileMenu: (value: boolean) => void;
   batches: Batch[];
-  api: (path: string) => Promise<any>;
+  api: (path: string, init?: RequestInit) => Promise<any>;
   setStudentFilters: React.Dispatch<
     React.SetStateAction<{
       q: string;
@@ -24,6 +25,7 @@ type Props = {
       limit: number;
     }>
   >;
+  onLogout: () => void;
 };
 
 export default function AdminTopbar({
@@ -37,6 +39,7 @@ export default function AdminTopbar({
   batches,
   api,
   setStudentFilters,
+  onLogout,
 }: Props) {
   const handleSearch = async () => {
     const query = search.trim().toLowerCase();
@@ -125,7 +128,6 @@ export default function AdminTopbar({
       </label>
 
       <div className="flex items-center gap-3">
-
         <button
           className="relative flex h-9 w-9 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
           aria-label="Notifications and notices"
@@ -175,6 +177,14 @@ export default function AdminTopbar({
           </span>
 
           <b className="hidden text-gray-400 sm:block">⌄</b>
+        </button>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
+        >
+          Logout
         </button>
       </div>
     </header>

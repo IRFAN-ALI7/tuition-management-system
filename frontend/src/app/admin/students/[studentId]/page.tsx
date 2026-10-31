@@ -207,6 +207,11 @@ function StudentDetailsContent() {
     {}
   );
   const [receipt, setReceipt] = useState<Payment | null>(null);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+const [newPassword, setNewPassword] = useState("");
+const [resettingPassword, setResettingPassword] = useState(false);
+const [resetPasswordMessage, setResetPasswordMessage] = useState("");
+const [resetPasswordError, setResetPasswordError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -434,6 +439,59 @@ function StudentDetailsContent() {
   }
 };
 
+const resetStudentPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+  event.preventDefault();
+
+  if (!student || resettingPassword) return;
+
+  const password = newPassword;
+
+  if (password.length < 8 || password.length > 128) {
+    setResetPasswordError("Password must be between 8 and 128 characters.");
+    return;
+  }
+
+  if (new TextEncoder().encode(password).length > 72) {
+    setResetPasswordError("Password must not exceed 72 UTF-8 bytes.");
+    return;
+  }
+
+  setResettingPassword(true);
+  setResetPasswordError("");
+  setResetPasswordMessage("");
+
+  try {
+    const response = await fetch(
+      API + "/students/" + encodeURIComponent(student._id) + "/reset-password",
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password }),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Could not reset student password.");
+    }
+
+    setResetPasswordMessage("Student password reset successfully.");
+    setNewPassword("");
+  } catch (error) {
+    setResetPasswordError(
+      error instanceof Error
+        ? error.message
+        : "Could not reset student password."
+    );
+  } finally {
+    setResettingPassword(false);
+  }
+};
+
   const yearOptions = Array.from(
     { length: Math.max(1, now.getFullYear() - 1999) },
     (_, index) => now.getFullYear() - index
@@ -632,6 +690,18 @@ function StudentDetailsContent() {
         }`}
       />
     </button>
+    <button
+  type="button"
+  className={buttonClass}
+  onClick={() => {
+    setNewPassword("");
+    setResetPasswordMessage("");
+    setResetPasswordError("");
+    setShowResetPassword(true);
+  }}
+>
+  Reset Password
+</button>
 
     <button
       className={primaryButtonClass}
@@ -1529,6 +1599,95 @@ function StudentDetailsContent() {
           </>
         )}
       </div>
+
+
+      {showResetPassword && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+    <section
+      className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reset-password-title"
+    >
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <h2
+            id="reset-password-title"
+            className="text-xl font-bold text-slate-900 dark:text-white"
+          >
+            Reset Student Password
+          </h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {student?.name}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowResetPassword(false)}
+          className="rounded-lg px-3 py-2 text-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </div>
+
+      <form onSubmit={resetStudentPassword} className="space-y-4">
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+            New Password
+          </span>
+
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+            placeholder="Enter new password"
+            minLength={8}
+            maxLength={128}
+            autoComplete="new-password"
+            required
+            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+          />
+        </label>
+
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Password must contain at least 8 characters and must not exceed 72 UTF-8 bytes.
+        </p>
+
+        {resetPasswordError && (
+          <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+            {resetPasswordError}
+          </p>
+        )}
+
+        {resetPasswordMessage && (
+          <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+            {resetPasswordMessage}
+          </p>
+        )}
+
+        <div className="flex flex-wrap justify-end gap-3 pt-2">
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => setShowResetPassword(false)}
+          >
+            Close
+          </button>
+
+          <button
+            type="submit"
+            className={primaryButtonClass}
+            disabled={resettingPassword || !newPassword}
+          >
+            {resettingPassword ? "Resetting..." : "Reset Password"}
+          </button>
+        </div>
+      </form>
+    </section>
+  </div>
+)}
 
       {receipt && (
         <div
