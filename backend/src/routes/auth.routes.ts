@@ -251,23 +251,91 @@ router.post("/admin/profile/email/verify", requireAuth, requireAdmin, otpVerifyL
 
 router.post("/login", async (request, response, next) => {
   try {
-    const { identifier, password, role } = request.body as { identifier?: string; password?: string; role?: string };
+    const { identifier, password, role } = request.body as {
+      identifier?: string;
+      password?: string;
+      role?: string;
+    };
+
     if (!identifier || !password || !["admin", "student"].includes(role ?? "")) {
-      response.status(400).json({ error: "Role, identifier and password are required." }); return;
+      response.status(400).json({
+        error: "Role, identifier and password are required.",
+      });
+      return;
     }
-    const filter = role === "admin"
-      ? { role, $or: [{ email: identifier.trim().toLowerCase() }, { name: identifier.trim() }] }
-      : { mobile: identifier.trim(), role };
+
+    const filter =
+      role === "admin"
+        ? {
+            role,
+            $or: [
+              { email: identifier.trim().toLowerCase() },
+              { name: identifier.trim() },
+            ],
+          }
+        : { mobile: identifier.trim(), role };
+
     const user = await User.findOne(filter).select("+passwordHash");
-    if (!user || !user.active || !(await bcrypt.compare(password, user.passwordHash))) {
-      response.status(401).json({ error: "Invalid sign in details." }); return;
+
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      response.status(401).json({
+        error: "Invalid sign in details.",
+      });
+      return;
     }
+
+    // Inactive student account check
+    if (role === "student" && !user.active) {
+      response.status(403).json({
+        code: "STUDENT_ACCOUNT_INACTIVE",
+        error:
+          "Your account is currently inactive. Please contact your tuition administrator to reactivate your account.",
+      });
+      return;
+    }
+
+    // Inactive admin account check
+    if (!user.active) {
+      response.status(401).json({
+        error: "Invalid sign in details.",
+      });
+      return;
+    }
+
     const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error("JWT_SECRET is not configured.");
-    const token = jwt.sign({ sub: user.id, role: user.role, version: user.sessionVersion }, secret, { expiresIn: "12h" });
-    response.cookie("session", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict", maxAge: 12 * 60 * 60 * 1000 });
-    response.json({ user: { id: user.id, name: user.name, role: user.role, mustChangePassword: user.mustChangePassword } });
-  } catch (error) { next(error); }
+
+    if (!secret) {
+      throw new Error("JWT_SECRET is not configured.");
+    }
+
+    const token = jwt.sign(
+      {
+        sub: user.id,
+        role: user.role,
+        version: user.sessionVersion,
+      },
+      secret,
+      { expiresIn: "12h" }
+    );
+
+    response.cookie("session", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 12 * 60 * 60 * 1000,
+    });
+
+    response.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post("/logout", (_request, response) => {

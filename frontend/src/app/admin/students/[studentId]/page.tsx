@@ -200,6 +200,8 @@ function StudentDetailsContent() {
   const [attendance, setAttendance] = useState<AttendanceData | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [sectionErrors, setSectionErrors] = useState<Record<string, string>>(
     {}
@@ -346,6 +348,92 @@ function StudentDetailsContent() {
       "/admin?section=Students&edit=" + encodeURIComponent(studentId)
     );
 
+    const toggleStudentStatus = async () => {
+  if (!student || statusUpdating) return;
+
+  const active = !student.active;
+
+  const confirmed = window.confirm(
+    `${active ? "Activate" : "Deactivate"} ${student.name}?`
+  );
+
+  if (!confirmed) return;
+
+  setStatusUpdating(true);
+  setError("");
+
+  try {
+    const response = await fetch(
+      API + "/students/" + encodeURIComponent(studentId) + "/active",
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ active }),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Could not update student status.");
+    }
+
+    setStudent((current) =>
+      current ? { ...current, active } : current
+    );
+  } catch (error) {
+    setError(
+      error instanceof Error
+        ? error.message
+        : "Could not update student status."
+    );
+  } finally {
+    setStatusUpdating(false);
+  }
+};
+
+    const deleteStudent = async () => {
+  if (!student || deleting) return;
+
+  const confirmed = window.confirm(
+    `Are you sure you want to delete ${student.name}? This action cannot be undone.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setDeleting(true);
+
+    const response = await fetch(
+      API + "/students/" + encodeURIComponent(student._id),
+      {
+        method: "DELETE",
+        credentials: "include",
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Could not delete student.");
+    }
+
+    alert("Student deleted successfully.");
+    router.push("/admin?section=Students");
+  } catch (error) {
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Could not delete student."
+    );
+  } finally {
+    setDeleting(false);
+  }
+};
+
   const yearOptions = Array.from(
     { length: Math.max(1, now.getFullYear() - 1999) },
     (_, index) => now.getFullYear() - index
@@ -446,10 +534,6 @@ function StudentDetailsContent() {
             </small>
           </span>
         </div>
-
-        <button className={`${buttonClass} hidden sm:inline-flex`} onClick={editStudent}>
-          Edit Student
-        </button>
       </header>
 
       <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -483,41 +567,88 @@ function StudentDetailsContent() {
         {student && (
           <>
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                {student.profilePhoto ? (
-                  <NextImage
-                    className="h-[88px] w-[88px] rounded-2xl object-cover ring-4 ring-indigo-50 dark:ring-indigo-950"
-                    src={student.profilePhoto}
-                    alt={student.name}
-                    width={88}
-                    height={88}
-                    unoptimized
-                  />
-                ) : (
-                  <span className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-3xl font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                    {student.name.slice(0, 1).toUpperCase()}
-                  </span>
-                )}
+                  
+<div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+  {/* Left: Student Photo and Details */}
+  <div className="flex min-w-0 items-center gap-4">
+    {student.profilePhoto ? (
+      <NextImage
+        className="h-[88px] w-[88px] shrink-0 rounded-2xl object-cover ring-4 ring-indigo-50 dark:ring-indigo-950"
+        src={student.profilePhoto}
+        alt={student.name}
+        width={88}
+        height={88}
+        unoptimized
+      />
+    ) : (
+      <span className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-3xl font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+        {student.name.slice(0, 1).toUpperCase()}
+      </span>
+    )}
 
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">
-                    Student Profile
-                  </div>
-                  <h1 className="break-words text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-                    {student.name}
-                  </h1>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                    {student.studentId || "Student ID unavailable"}
-                  </p>
-                  <span className={`${statusClass(student.active)} mt-3`}>
-                    {student.active ? "Active" : "Inactive"}
-                  </span>
-                </div>
+    <div className="min-w-0">
+      <div className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">
+        Student Profile
+      </div>
 
-                <button className={primaryButtonClass} onClick={editStudent}>
-                  Edit Student
-                </button>
-              </div>
+      <h1 className="break-words text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+        {student.name}
+      </h1>
+
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        {student.studentId || "Student ID unavailable"}
+      </p>
+
+      <span
+        className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${
+          student.active
+            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+            : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300"
+        }`}
+      >
+        {student.active ? "Active" : "Inactive"}
+      </span>
+    </div>
+  </div>
+
+  {/* Right: Toggle, Edit and Delete */}
+  <div className="flex shrink-0 flex-wrap items-center gap-3 sm:justify-end">
+    <button
+      type="button"
+      role="switch"
+      aria-checked={student.active}
+      aria-label="Toggle student account status"
+      disabled={statusUpdating}
+      onClick={toggleStudentStatus}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+        student.active
+          ? "bg-green-500"
+          : "bg-slate-300 dark:bg-slate-600"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+          student.active ? "translate-x-5" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+
+    <button
+      className={primaryButtonClass}
+      onClick={editStudent}
+    >
+      Edit Student
+    </button>
+
+    <button
+      className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+      onClick={deleteStudent}
+      disabled={deleting}
+    >
+      {deleting ? "Deleting..." : "Delete Student"}
+    </button>
+  </div>
+</div>
 
               <dl className="mt-7 grid grid-cols-1 gap-4 border-t border-slate-100 pt-6 dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-4">
                 {[

@@ -1,3 +1,4 @@
+
 "use client";
 
 import NextImage from "next/image";
@@ -25,7 +26,6 @@ type StudentsListProps = {
   onReset: () => void;
   onAdd: () => void;
   onView: (student: Student) => void;
-  onEdit: (student: Student) => void;
   onStatus: (student: Student) => void;
 };
 
@@ -42,14 +42,14 @@ export default function StudentsList({
   onReset,
   onAdd,
   onView,
-  onEdit,
-  onStatus,
 }: StudentsListProps) {
   const totalPages = Math.max(1, pagination.totalPages);
+
   const startPage = Math.max(
     1,
     Math.min(filters.page - 2, totalPages - 4)
   );
+
   const endPage = Math.min(totalPages, startPage + 4);
 
   const pages = Array.from(
@@ -65,18 +65,6 @@ export default function StudentsList({
     filters.page * filters.limit,
     pagination.total
   );
-
-  const formatDate = (value?: string) =>
-    value
-      ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString(
-          "en-IN",
-          {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }
-        )
-      : "—";
 
   const batchFor = (student: Student) =>
     typeof student.batchId === "object" && student.batchId
@@ -106,14 +94,17 @@ export default function StudentsList({
           label="Total Students"
           value={summary.total.toLocaleString("en-IN")}
         />
+
         <SummaryCard
           label="Active Students"
           value={summary.active.toLocaleString("en-IN")}
         />
+
         <SummaryCard
           label="Inactive Students"
           value={summary.inactive.toLocaleString("en-IN")}
         />
+
         <SummaryCard
           label="Total Batches"
           value={summary.totalBatches.toLocaleString("en-IN")}
@@ -123,6 +114,7 @@ export default function StudentsList({
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 lg:flex-row">
         <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 dark:border-gray-700">
           <span aria-hidden="true">⌕</span>
+
           <input
             className="w-full bg-transparent py-2 text-sm outline-none"
             aria-label="Search students"
@@ -141,6 +133,7 @@ export default function StudentsList({
           }
         >
           <option value="all">All Classes</option>
+
           {classes.map((className) => (
             <option key={className} value={className}>
               {className}
@@ -152,9 +145,12 @@ export default function StudentsList({
           className="rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm dark:border-gray-700"
           aria-label="Filter by batch"
           value={filters.batchId}
-          onChange={(event) => onFilter("batchId", event.target.value)}
+          onChange={(event) =>
+            onFilter("batchId", event.target.value)
+          }
         >
           <option value="all">All Batches</option>
+
           {batches.map((batch) => (
             <option key={batch._id} value={batch._id}>
               {batch.name}
@@ -166,7 +162,9 @@ export default function StudentsList({
           className="rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm dark:border-gray-700"
           aria-label="Filter by status"
           value={filters.status}
-          onChange={(event) => onFilter("status", event.target.value)}
+          onChange={(event) =>
+            onFilter("status", event.target.value)
+          }
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
@@ -183,13 +181,16 @@ export default function StudentsList({
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         {error && (
-          <div className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300" role="alert">
+          <div
+            className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
+            role="alert"
+          >
             {error}
           </div>
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1000px] text-left text-sm">
+          <table className="w-full min-w-[850px] text-left text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 dark:bg-gray-800">
               <tr>
                 <th className="p-3">#</th>
@@ -198,9 +199,7 @@ export default function StudentsList({
                 <th className="p-3">Phone</th>
                 <th className="p-3">Class</th>
                 <th className="p-3">Batch</th>
-                <th className="p-3">Monthly Fees</th>
                 <th className="p-3">Status</th>
-                <th className="p-3">Admission Date</th>
                 <th className="p-3">Actions</th>
               </tr>
             </thead>
@@ -208,13 +207,14 @@ export default function StudentsList({
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="p-8 text-center" colSpan={10}>
+                  <td className="p-8 text-center" colSpan={8}>
                     Loading students…
                   </td>
                 </tr>
               ) : (
                 students.map((student, index) => {
                   const batch = batchFor(student);
+
                   const id =
                     student.studentId ??
                     `STU${student._id.slice(-6).toUpperCase()}`;
@@ -224,7 +224,10 @@ export default function StudentsList({
                       key={student._id}
                       className="border-t border-gray-100 dark:border-gray-800"
                     >
-                      <td className="p-3">{startRow + index}</td>
+                      <td className="p-3">
+                        {startRow + index}
+                      </td>
+
                       <td className="p-3">{id}</td>
 
                       <td className="p-3">
@@ -242,75 +245,41 @@ export default function StudentsList({
                               student.name.slice(0, 1).toUpperCase()
                             )}
                           </span>
+
                           <strong>{student.name}</strong>
                         </span>
                       </td>
 
                       <td className="p-3">{student.phone}</td>
-                      <td className="p-3">{student.className || "—"}</td>
+
+                      <td className="p-3">
+                        {student.className || "—"}
+                      </td>
 
                       <td className="p-3">
                         {batch ? batch.name : "Unassigned"}
                       </td>
+                      <td className="p-3">
+                          <span
+                         className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                       student.active
+                         ? "bg-emerald-100 text-emerald-700"
+                      : "bg-rose-100 text-rose-700"
+                        }`}
+                       >
+                       {student.active ? "Active" : "Inactive"}
+                          </span>
+                       </td>
 
                       <td className="p-3">
-                        {typeof student.monthlyFees === "number"
-                          ? `₹${student.monthlyFees.toLocaleString("en-IN")}`
-                          : "—"}
-                      </td>
-
-                      <td className="p-3">
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs ${
-                            student.active
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
+                        <button
+                          title="View profile"
+                          aria-label={`View ${student.name}`}
+                          onClick={() => onView(student)}
+                          className="font-medium text-blue-600 hover:text-blue-800"
                         >
-                          {student.active ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-
-                      <td className="p-3">
-                        {formatDate(
-                          student.admissionDate || student.createdAt
-                        )}
-                      </td>
-
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <button
-                            title="View profile"
-                            aria-label={`View ${student.name}`}
-                            onClick={() => onView(student)}
-                          >
-                            ◉
-                          </button>
-
-                          <button
-                            title="Edit details or batch"
-                            aria-label={`Edit ${student.name}`}
-                            onClick={() => onEdit(student)}
-                          >
-                            ✎
-                          </button>
-
-                          <button
-                            title={
-                              student.active
-                                ? "Deactivate student"
-                                : "Activate student"
-                            }
-                            aria-label={
-                              student.active
-                                ? `Deactivate ${student.name}`
-                                : `Activate ${student.name}`
-                            }
-                            onClick={() => onStatus(student)}
-                          >
-                            {student.active ? "⋮" : "↻"}
-                          </button>
-                        </div>
+                          View Profile
+                        </button>
                       </td>
                     </tr>
                   );
@@ -319,7 +288,10 @@ export default function StudentsList({
 
               {!loading && students.length === 0 && (
                 <tr>
-                  <td className="p-8 text-center text-gray-500" colSpan={10}>
+                  <td
+                    className="p-8 text-center text-gray-500"
+                    colSpan={8}
+                  >
                     {pagination.total === 0 &&
                     !filters.q &&
                     filters.className === "all" &&
@@ -343,6 +315,7 @@ export default function StudentsList({
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 text-xs">
               Rows per page
+
               <select
                 className="rounded border border-gray-200 bg-transparent p-1 dark:border-gray-700"
                 value={filters.limit}
@@ -367,7 +340,10 @@ export default function StudentsList({
 
             {startPage > 1 && (
               <>
-                <button onClick={() => onFilter("page", 1)}>1</button>
+                <button onClick={() => onFilter("page", 1)}>
+                  1
+                </button>
+
                 {startPage > 2 && <span>…</span>}
               </>
             )}
@@ -380,7 +356,9 @@ export default function StudentsList({
                     ? "bg-blue-600 text-white"
                     : "border border-gray-200 dark:border-gray-700"
                 }`}
-                aria-current={filters.page === page ? "page" : undefined}
+                aria-current={
+                  filters.page === page ? "page" : undefined
+                }
                 onClick={() => onFilter("page", page)}
               >
                 {page}
@@ -390,7 +368,10 @@ export default function StudentsList({
             {endPage < totalPages && (
               <>
                 <span>…</span>
-                <button onClick={() => onFilter("page", totalPages)}>
+
+                <button
+                  onClick={() => onFilter("page", totalPages)}
+                >
                   {totalPages}
                 </button>
               </>
@@ -423,6 +404,7 @@ function SummaryCard({
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950">
         ●
       </div>
+
       <div>
         <small className="text-gray-500">{label}</small>
         <strong className="block text-xl">{value}</strong>

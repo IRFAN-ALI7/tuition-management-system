@@ -1332,7 +1332,6 @@ export default function Home() {
                 onView={(student) =>
                   router.push("/admin/students/" + student._id)
                 }
-                onEdit={openStudentEditor}
                 onStatus={(student) => void changeStudentStatus(student)}
               />
             ) : section === "Tests & Results" ? (

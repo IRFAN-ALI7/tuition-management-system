@@ -1,9 +1,17 @@
 import { Router } from "express";
-import { isValidObjectId, Types } from "mongoose";
+import mongoose, { isValidObjectId, Types } from "mongoose";
 
+import bcrypt from "bcryptjs";
+import User from "../models/User.model";
 import Student from "../models/Student.model";
 import Batch from "../models/Batch.model";
 import Counter from "../models/Counter.model";
+import Attendance from "../models/Attendance.model";
+import FeePayment from "../models/FeePayment.model";
+import FeeLedger from "../models/FeeLedger.model";
+import ExamResult from "../models/ExamResult.model";
+import Exam from "../models/Exam.model";
+import Notice from "../models/Notice.model";
 
 import { normalizePhone, normalizeText } from "../utils/normalization";
 
@@ -280,6 +288,7 @@ router.get("/:id", async (request, response, next) => {
   }
 });
 
+
 router.post("/", async (request, response, next) => {
   try {
     const body = request.body as Record<string, unknown>;
@@ -287,14 +296,15 @@ router.post("/", async (request, response, next) => {
     const { name, phone } = body;
 
     const fatherName =
-      typeof body.fatherName === "string"
-        ? body.fatherName
-        : "";
+      typeof body.fatherName === "string" ? body.fatherName : "";
 
     const address =
       typeof body.address === "string"
         ? body.address.trim().replace(/\s+/g, " ")
         : "";
+
+    const password =
+      typeof body.password === "string" ? body.password : "";
 
     const feeProvided =
       typeof body.monthlyFees === "number" ||
@@ -312,9 +322,7 @@ router.post("/", async (request, response, next) => {
         : "";
 
     const gender =
-      typeof body.gender === "string"
-        ? body.gender
-        : "";
+      typeof body.gender === "string" ? body.gender : "";
 
     const className =
       typeof body.className === "string"
@@ -338,8 +346,14 @@ router.post("/", async (request, response, next) => {
       normalizePhone(phone).length < 10
     ) {
       response.status(400).json({
-        error:
-          "Student name and a valid 10 digit phone number are required.",
+        error: "Student name and a valid 10 digit phone number are required.",
+      });
+      return;
+    }
+
+    if (password.length < 8) {
+      response.status(400).json({
+        error: "Initial password must be at least 8 characters long.",
       });
       return;
     }
@@ -371,13 +385,10 @@ router.post("/", async (request, response, next) => {
       !Number.isFinite(monthlyFees) ||
       monthlyFees < 0 ||
       !validAdmissionDate ||
-      (gender &&
-        !["Male", "Female", "Other"].includes(gender)) ||
+      (gender && !["Male", "Female", "Other"].includes(gender)) ||
       profilePhoto.length > 700_000 ||
       (profilePhoto &&
-        !/^data:image\/(png|jpeg|webp);base64,/.test(
-          profilePhoto
-        ))
+        !/^data:image\/(png|jpeg|webp);base64,/.test(profilePhoto))
     ) {
       response.status(400).json({
         error:
@@ -405,14 +416,12 @@ router.post("/", async (request, response, next) => {
     }
 
     const cleanName = name.trim().replace(/\s+/g, " ");
-
-    const cleanFather = fatherName
-      .trim()
-      .replace(/\s+/g, " ");
+    const cleanFather = fatherName.trim().replace(/\s+/g, " ");
+    const cleanPhone = phone.trim();
 
     const identity = {
       nameKey: normalizeText(cleanName),
-      phoneKey: normalizePhone(phone),
+      phoneKey: normalizePhone(cleanPhone),
       fatherNameKey: normalizeText(cleanFather),
     };
 
@@ -427,13 +436,28 @@ router.post("/", async (request, response, next) => {
       return;
     }
 
-    // Automatically generate a unique 4-character Student ID.
-    const studentId = await generateStudentId();
+    const existingUser = await User.findOne({
+      mobile: cleanPhone,
+      role: "student",
+    }).lean();
 
+    if (existingUser) {
+      response.status(409).json({
+        error:
+          "A student login account already exists with this mobile number.",
+      });
+      return;
+    }
+
+    const studentId = await generateStudentId();
+    const studentActive = body.active !== false;
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Create Student profile first.
     const student = await Student.create({
       studentId,
       name: cleanName,
-      phone: phone.trim(),
+      phone: cleanPhone,
       fatherName: cleanFather,
       ...identity,
       address,
@@ -443,15 +467,35 @@ router.post("/", async (request, response, next) => {
       monthlyFees,
       profilePhoto,
       batchId,
-      active: body.active !== false,
+      active: studentActive,
     });
 
-    response.status(201).json({ student });
+    try {
+      // Create linked login account.
+      await User.create({
+        name: cleanName,
+        mobile: cleanPhone,
+        passwordHash,
+        role: "student",
+        studentId: student._id,
+        active: studentActive,
+        mustChangePassword: true,
+      });
+    } catch (userError) {
+      // Remove Student if User creation fails.
+      await Student.deleteOne({ _id: student._id });
+      throw userError;
+    }
+
+    response.status(201).json({
+      message: "Student profile and login account created successfully.",
+      student,
+    });
   } catch (error) {
     if ((error as { code?: number }).code === 11000) {
       response.status(409).json({
         error:
-          "This student already exists. Select the existing student instead of creating a duplicate.",
+          "A student or login account already exists with these details.",
       });
       return;
     }
@@ -459,6 +503,7 @@ router.post("/", async (request, response, next) => {
     next(error);
   }
 });
+
 
 router.patch("/:id", async (request, response, next) => {
   try {
@@ -671,8 +716,111 @@ router.patch("/:id", async (request, response, next) => {
   }
 });
 
-router.patch("/:id/active", async (request, response, next) => {
+// Permanently delete student and all related records.
+router.delete("/:id", async (request, response, next) => {
+  const session = await mongoose.startSession();
+
   try {
+    if (!isValidObjectId(request.params.id)) {
+      response.status(400).json({
+        error: "Invalid student ID.",
+      });
+      return;
+    }
+
+    const studentObjectId = new Types.ObjectId(request.params.id);
+
+   const deletedStudent: {
+  found: boolean;
+  studentId?: string;
+} = {
+  found: false,
+};
+
+    await session.withTransaction(async () => {
+      const student = await Student.findById(studentObjectId)
+  .session(session)
+  .lean();
+
+if (!student) {
+  return;
+}
+
+deletedStudent.found = true;
+deletedStudent.studentId = (student as any).studentId;
+
+      await FeePayment.deleteMany({
+        studentId: studentObjectId,
+      }).session(session);
+
+      await FeeLedger.deleteMany({
+        studentId: studentObjectId,
+      }).session(session);
+
+      await Attendance.updateMany(
+        { "records.studentId": studentObjectId },
+        {
+          $pull: {
+            records: { studentId: studentObjectId },
+          },
+        },
+        { session }
+      );
+
+      await ExamResult.deleteMany({
+        studentId: studentObjectId,
+      }).session(session);
+
+      await Exam.updateMany(
+        { studentIds: studentObjectId },
+        {
+          $pull: {
+            studentIds: studentObjectId,
+          },
+        },
+        { session }
+      );
+
+      await Notice.deleteMany({
+        recipientType: "SINGLE_STUDENT",
+        studentId: studentObjectId,
+      }).session(session);
+
+      await Student.deleteOne({
+        _id: studentObjectId,
+      }).session(session);
+    });
+
+    if (!deletedStudent.found) {
+      response.status(404).json({
+        error: "Student not found.",
+      });
+      return;
+    }
+
+    response.json({
+      message: "Student and all related records deleted successfully.",
+      studentId: deletedStudent.studentId,
+    });
+  } catch (error) {
+    next(error);
+  } finally {
+    await session.endSession();
+  }
+});
+
+
+router.patch("/:id/active", async (request, response, next) => {
+  const session = await mongoose.startSession();
+
+  try {
+    if (!isValidObjectId(request.params.id)) {
+      response.status(400).json({
+        error: "Invalid student ID.",
+      });
+      return;
+    }
+
     const active = (request.body as { active?: unknown }).active;
 
     if (typeof active !== "boolean") {
@@ -682,23 +830,58 @@ router.patch("/:id/active", async (request, response, next) => {
       return;
     }
 
-    const student = await Student.findByIdAndUpdate(
-      request.params.id,
-      { active },
-      { new: true }
-    );
+    let updatedStudent = null;
 
-    if (!student) {
+    await session.withTransaction(async () => {
+      const student = await Student.findById(request.params.id).session(
+        session
+      );
+
+      if (!student) {
+        return;
+      }
+
+      // Update linked student login account.
+      const user = await User.findOne({
+        studentId: student._id,
+        role: "student",
+      }).session(session);
+
+      if (user) {
+        user.active = active;
+
+        // Invalidate all existing sessions.
+        user.sessionVersion += 1;
+
+        await user.save({ session });
+      }
+
+      // Update student profile status.
+      student.active = active;
+      await student.save({ session });
+
+      updatedStudent = student;
+    });
+
+    if (!updatedStudent) {
       response.status(404).json({
         error: "Student not found.",
       });
       return;
     }
 
-    response.json({ student });
+    response.json({
+      message: active
+        ? "Student account activated successfully."
+        : "Student account deactivated successfully.",
+      student: updatedStudent,
+    });
   } catch (error) {
     next(error);
+  } finally {
+    await session.endSession();
   }
 });
+
 
 export default router;
