@@ -7,21 +7,24 @@ import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
 
-import { FeesManagement } from "@/components/admin/FeesManagement";
-import { ExamsManagement } from "@/components/admin/ExamsManagement";
-import { NoticesManagement } from "@/components/admin/NoticesManagement";
+import { FeesManagement } from "@/components/admin/fees/FeesManagement";
+import { ExamsManagement } from "@/components/admin/exams/ExamsManagement";
+import { NoticesManagement } from "@/components/admin/notices/NoticesManagement";
 
-import DashboardOverview from "@/components/admin/DashboardOverview";
-import StudentsList from "@/components/admin/StudentsList";
-import BatchesList from "@/components/admin/BatchesList";
-import AttendanceManagement from "@/components/admin/AttendanceManagement";
-import BatchEditorModal from "@/components/admin/BatchEditorModal";
-import AdminSidebar from "@/components/admin/AdminSidebar";
-import AdminTopbar from "@/components/admin/AdminTopbar";
-import AdminRightRail from "@/components/admin/AdminRightRail";
-import AdminProfileSection from "@/components/admin/AdminProfileSection";
-import AdminSettingsSection from "@/components/admin/AdminSettingsSection";
-import AdminPageFooter from "@/components/admin/AdminPageFooter";
+import DashboardOverview from "@/components/admin/dashboard/DashboardOverview";
+import StudentsList from "@/components/admin/students/StudentsList";
+import BatchesList from "@/components/admin/batches/BatchesList";
+import AttendanceManagement from "@/components/admin/attendance/AttendanceManagement";
+
+import BatchEditorModal from "@/components/admin/batches/BatchEditorModal";
+import AdminProfileSection from "@/components/admin/profile/AdminProfileSection";
+import AdminSettingsSection from "@/components/admin/settings/AdminSettingsSection";
+
+import AdminSidebar from "@/components/admin/layout/AdminSidebar";
+import AdminTopbar from "@/components/admin/layout/AdminTopbar";
+import AdminRightRail from "@/components/admin/layout/AdminRightRail";
+import AdminPageFooter from "@/components/admin/layout/AdminPageFooter";
+
 
 import type {
   Student,
@@ -34,7 +37,7 @@ import type {
   AdminProfile,
   Section,
   BatchDraft,
-} from "@/components/admin/types";
+} from "@/components/admin/shared/types";
 
 const API =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";

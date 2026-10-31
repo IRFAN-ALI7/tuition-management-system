@@ -1,6 +1,6 @@
 "use client";
 
-import type { Student, Batch } from "./types";
+import type { Student, Batch } from "../shared/types";
 
 type Props = {
   students: Student[];

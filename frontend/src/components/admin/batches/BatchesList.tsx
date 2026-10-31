@@ -1,6 +1,6 @@
 "use client";
 
-import type { Batch, BatchSummary } from "./types";
+import type { Batch, BatchSummary } from "../shared/types";
 
 type BatchesListProps = {
   batches: Batch[];

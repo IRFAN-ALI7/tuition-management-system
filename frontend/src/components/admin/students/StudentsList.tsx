@@ -8,7 +8,7 @@ import type {
   StudentSummary,
   StudentPagination,
   StudentFilters,
-} from "./types";
+} from "../shared/types";
 
 type StudentsListProps = {
   students: Student[];

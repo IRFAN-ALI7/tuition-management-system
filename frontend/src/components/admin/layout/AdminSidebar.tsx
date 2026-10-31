@@ -1,8 +1,8 @@
 
 "use client";
 
-import type { Section } from "./types";
-import Icon from "./Icon";
+import type { Section } from "../shared/types";
+import Icon from "../shared/Icon";
 
 type Props = {
   section: Section;

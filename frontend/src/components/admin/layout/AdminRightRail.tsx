@@ -1,6 +1,6 @@
 "use client";
 
-import type { Batch, Section } from "./types";
+import type { Batch, Section } from "../shared/types";
 
 type Props = {
   batches: Batch[];

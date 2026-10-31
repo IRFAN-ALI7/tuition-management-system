@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import type { Batch, Student, BatchDraft } from "./types";
+import type { Batch, Student, BatchDraft } from "../shared/types";
 import TimePicker from "./TimePicker";
 
 type Props = {

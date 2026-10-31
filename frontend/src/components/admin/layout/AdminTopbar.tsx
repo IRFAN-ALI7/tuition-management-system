@@ -3,7 +3,7 @@
 
 import type { RefObject } from "react";
 import NextImage from "next/image";
-import type { AdminProfile, Section, Batch } from "./types";
+import type { AdminProfile, Section, Batch } from "../shared/types";
 
 type Props = {
   section: Section;

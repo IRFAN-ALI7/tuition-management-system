@@ -7,7 +7,7 @@ import type {
   DashboardFeeSummary,
   Batch,
   AdminProfile,
-} from "./types";
+} from "../shared/types";
 
 type DashboardOverviewProps = {
   students: Student[];

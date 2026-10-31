@@ -1,7 +1,7 @@
 "use client";
 
 import NextImage from "next/image";
-import type { AdminProfile } from "./types";
+import type { AdminProfile } from "../shared/types";
 
 type ProfileDraft = {
   name: string;
