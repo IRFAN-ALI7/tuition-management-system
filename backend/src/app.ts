@@ -10,6 +10,7 @@ import feeRoutes from "./routes/fee.routes";
 import examRoutes from "./routes/exam.routes";
 import noticeRoutes from "./routes/notice.routes";
 import { AuthRequest, requireAdmin, requireAuth } from "./middleware/authenticate";
+import { getSession } from "./controllers/auth.controller";
 
 const app = express();
 app.disable("x-powered-by");
@@ -19,10 +20,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false }));
 app.get("/api/health", (_request, response) => response.json({ status: "ok", service: "udaan-api" }));
 app.use("/api/auth", authRoutes);
-app.get("/api/auth/session", requireAuth, (request, response) => {
-  const auth = (request as AuthRequest).auth;
-  response.json({ user: { id: auth?.userId, role: auth?.role } });
-});
+app.get("/api/auth/session", requireAuth, getSession);
 app.use("/api/batches", requireAuth, requireAdmin, batchRoutes);
 app.use("/api/students", requireAuth, requireAdmin, studentRoutes);
 app.use("/api/attendance", requireAuth, requireAdmin, attendanceRoutes);

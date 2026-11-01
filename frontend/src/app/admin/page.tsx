@@ -31,7 +31,6 @@ import AdminSettingsSection from "@/components/admin/settings/AdminSettingsSecti
 
 import AdminSidebar from "@/components/admin/layout/AdminSidebar";
 import AdminTopbar from "@/components/admin/layout/AdminTopbar";
-import AdminRightRail from "@/components/admin/layout/AdminRightRail";
 import AdminPageFooter from "@/components/admin/layout/AdminPageFooter";
 
 
@@ -778,18 +777,6 @@ const handleLogout = async () => {
                         <AdminPageFooter authenticated={authenticated} />
           </div>
         </div>
-
-        {/* Right Sidebar */}
-        <aside className="hidden w-80 shrink-0 border-l border-gray-200 bg-gray-50 p-5 xl:block dark:border-gray-800 dark:bg-gray-950">
-          <AdminRightRail
-            batches={batches}
-            section={section}
-            authenticated={authenticated}
-            todayLabel={todayLabel}
-            setSection={setSection}
-            onStudentPortal={() => router.push("/student/login")}
-          />
-        </aside>
       </div>
 
       {/* Batch Create / Edit Modal */}

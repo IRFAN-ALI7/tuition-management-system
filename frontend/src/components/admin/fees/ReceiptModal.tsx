@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -27,7 +28,7 @@ export default function ReceiptModal({ payment, onClose }: Props) {
       >
         <button
           type="button"
-          className="no-print absolute right-4 top-3 rounded-lg px-2 py-1 text-2xl text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          className="print:hidden absolute right-4 top-3 rounded-lg px-2 py-1 text-2xl text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           aria-label="Close receipt"
           onClick={onClose}
         >
@@ -132,7 +133,7 @@ export default function ReceiptModal({ payment, onClose }: Props) {
           </p>
         </div>
 
-        <div className="no-print mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
+        <div className="print:hidden mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             className={outlineButtonClass}

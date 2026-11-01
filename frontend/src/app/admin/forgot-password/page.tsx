@@ -218,10 +218,10 @@ export default function AdminForgotPasswordPage() {
     <main className="flex min-h-[100svh] flex-col bg-[radial-gradient(ellipse_at_50%_44%,#f1edff_0%,#f8f6ff_37%,transparent_72%),linear-gradient(135deg,#fbfaff_0%,#f8f6ff_56%,#f2edff_100%)] px-[clamp(18px,7vw,112px)] text-[#111b49] dark:bg-[radial-gradient(ellipse_at_50%_44%,#29233d_0%,#201d2d_42%,transparent_76%),linear-gradient(135deg,#191722,#211e30_60%,#29213b)] dark:text-[#f0eef8] max-[560px]:px-[18px]">
       <header className="mx-auto flex min-h-[94px] w-full max-w-[1440px] items-center justify-between border-b border-[#e9e3fa] dark:border-[#393448] max-[560px]:min-h-[76px]">
         <Link
-          className="public-brand max-[560px]:[& strong]:text-[19px] max-[560px]:[& small]:text-[9px]"
+          className="flex items-center gap-[17px] text-inherit no-underline [&>span:last-child]:grid [&>span:last-child]:gap-[3px] [&_strong]:text-[29px] [&_strong]:leading-[1.15] [&_strong]:tracking-[-0.8px] [&_strong]:text-[#101a4a] [&_small]:mt-0.5 [&_small]:text-[13px] [&_small]:tracking-[2px] [&_small]:text-[#6d70ae] max-[560px]:[&_strong]:text-[19px] max-[560px]:[&_small]:text-[9px] dark:[&_strong]:text-[#f0eef8]"
           href="/"
         >
-          <span className="public-logo max-[560px]:size-10 max-[560px]:text-[23px]">
+          <span className="grid size-[60px] shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#6c45f1] to-[#815bf1] text-[34px] text-white max-[560px]:size-10 max-[560px]:text-[23px]">
             ✳
           </span>
           <span>
@@ -341,9 +341,7 @@ export default function AdminForgotPasswordPage() {
                 maxLength={6}
                 value={otp}
                 onChange={(event) =>
-                  setOtp(
-                    event.target.value.replace(/\D/g, "").slice(0, 6)
-                  )
+                  setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
                 }
                 placeholder="000000"
               />
@@ -417,9 +415,7 @@ export default function AdminForgotPasswordPage() {
                 maxLength={128}
                 type="password"
                 value={confirmPassword}
-                onChange={(event) =>
-                  setConfirmPassword(event.target.value)
-                }
+                onChange={(event) => setConfirmPassword(event.target.value)}
                 placeholder="Enter the new password again"
               />
             </label>

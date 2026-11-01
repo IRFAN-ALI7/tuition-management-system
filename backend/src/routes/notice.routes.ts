@@ -1,57 +1,16 @@
+
 import { Router } from "express";
-import { isValidObjectId, Types } from "mongoose";
-import Batch from "../models/Batch.model";
-import Notice, { NOTICE_RECIPIENT_TYPES } from "../models/Notice.model";
-import Student from "../models/Student.model";
+
+import {
+  getAllNotices,
+  createNotice,
+  deleteNotice,
+} from "../controllers/admin/notice.controller";
 
 const router = Router();
 
-router.get("/", async (_request, response, next) => {
-  try {
-    const notices = await Notice.find()
-      .populate("batchId", "name")
-      .populate("studentId", "name phone")
-      .sort({ createdAt: -1, _id: -1 })
-      .lean();
-    response.json({ notices });
-  } catch (error) { next(error); }
-});
-
-router.post("/", async (request, response, next) => {
-  try {
-    const body = request.body as Record<string, unknown>;
-    const title = typeof body.title === "string" ? body.title.trim() : "";
-    const message = typeof body.message === "string" ? body.message.trim() : "";
-    const recipientType = body.recipientType;
-    if (!title || !message || typeof recipientType !== "string" || !NOTICE_RECIPIENT_TYPES.includes(recipientType as typeof NOTICE_RECIPIENT_TYPES[number])) {
-      response.status(400).json({ error: "Title, message, and a valid recipient type are required." }); return;
-    }
-
-    let batchId: Types.ObjectId | null = null;
-    let studentId: Types.ObjectId | null = null;
-    if (recipientType === "BATCH_WISE") {
-      if (typeof body.batchId !== "string" || !isValidObjectId(body.batchId)) { response.status(400).json({ error: "Choose a valid batch." }); return; }
-      batchId = new Types.ObjectId(body.batchId);
-      if (!(await Batch.exists({ _id: batchId }))) { response.status(404).json({ error: "Batch not found." }); return; }
-    } else if (recipientType === "SINGLE_STUDENT") {
-      if (typeof body.studentId !== "string" || !isValidObjectId(body.studentId)) { response.status(400).json({ error: "Choose a valid student." }); return; }
-      studentId = new Types.ObjectId(body.studentId);
-      if (!(await Student.exists({ _id: studentId }))) { response.status(404).json({ error: "Student not found." }); return; }
-    }
-
-    const notice = await Notice.create({ title, message, recipientType, batchId, studentId });
-    await notice.populate([{ path: "batchId", select: "name" }, { path: "studentId", select: "name phone" }]);
-    response.status(201).json({ notice });
-  } catch (error) { next(error); }
-});
-
-router.delete("/:id", async (request, response, next) => {
-  try {
-    if (!isValidObjectId(request.params.id)) { response.status(400).json({ error: "Invalid notice ID." }); return; }
-    const notice = await Notice.findByIdAndDelete(request.params.id);
-    if (!notice) { response.status(404).json({ error: "Notice not found." }); return; }
-    response.json({ message: "Notice deleted." });
-  } catch (error) { next(error); }
-});
+router.get("/", getAllNotices);
+router.post("/", createNotice);
+router.delete("/:id", deleteNotice);
 
 export default router;

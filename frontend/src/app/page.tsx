@@ -5,11 +5,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useState } from "react";
 
 export default function PublicHomePage() {
   const { clearRole } = useTheme();
   const router = useRouter();
+  const [pressedRole, setPressedRole] = useState<"admin" | "student" | null>(
+    null
+  );
 
   useLayoutEffect(() => {
     clearRole();
@@ -25,18 +28,23 @@ export default function PublicHomePage() {
       event.shiftKey ||
       event.altKey ||
       event.button !== 0
-    )
+    ) {
       return;
+    }
 
     event.preventDefault();
-    const link = event.currentTarget;
-    link.classList.add("login-option-pressed");
+    setPressedRole(role);
 
     window.setTimeout(() => {
-      link.classList.remove("login-option-pressed");
       router.push(role === "admin" ? "/admin/login" : "/student/login");
     }, 160);
   }
+
+  const loginButtonBase =
+    "group flex min-h-[106px] w-full items-center gap-[19px] rounded-[20px] border border-[#ece7fa] bg-white px-5 py-4 text-[#121b49] no-underline shadow-[0_10px_25px_#4831a00c] transition duration-200 hover:-translate-y-0.5 hover:border-[#d9d0fb] hover:shadow-[0_12px_28px_#4831a018] active:translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#aa98ff] sm:px-6";
+
+  const loginButtonPressed =
+    "translate-y-px border-[#7053e6] bg-gradient-to-r from-[#7053e6] to-[#8069ee] text-white shadow-[0_9px_24px_#7053e64a]";
 
   return (
     <main className="relative isolate flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-[#fbfaff] via-white to-[#f7f1ff] px-6 text-[#111b49] sm:px-8 lg:px-[clamp(32px,7vw,112px)]">
@@ -63,6 +71,7 @@ export default function PublicHomePage() {
           >
             ✳
           </span>
+
           <span className="flex flex-col">
             <strong className="text-[29px] leading-tight tracking-[-0.8px] text-[#101a4a]">
               Udaan
@@ -89,26 +98,38 @@ export default function PublicHomePage() {
 
           <div className="mt-0 grid w-full max-w-[565px] grid-cols-1 gap-[14px]">
             <Link
-              className="home-button group flex min-h-[106px] w-full items-center gap-[19px] rounded-[20px] border border-[#ece7fa] bg-white px-5 py-4 text-[#121b49] no-underline shadow-[0_10px_25px_#4831a00c] transition duration-200 hover:-translate-y-0.5 hover:border-[#d9d0fb] hover:shadow-[0_12px_28px_#4831a018] active:translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#aa98ff] sm:px-6"
+              className={`${loginButtonBase} ${
+                pressedRole === "admin" ? loginButtonPressed : ""
+              }`}
               href="/admin/login"
               onClick={(event) => navigateToLogin(event, "admin")}
             >
               <span
-                className="flex size-[52px] shrink-0 items-center justify-center rounded-2xl bg-[#f0ebff] text-2xl text-[#7355df]"
+                className={`flex size-[52px] shrink-0 items-center justify-center rounded-2xl bg-[#f0ebff] text-2xl text-[#7355df] ${
+                  pressedRole === "admin" ? "bg-white/20 text-white" : ""
+                }`}
                 aria-hidden="true"
               >
                 ▦
               </span>
+
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <strong className="text-base font-bold sm:text-lg">
                   Admin Login
                 </strong>
-                <small className="text-sm text-[#777991]">
+                <small
+                  className={`text-sm ${
+                    pressedRole === "admin" ? "text-white" : "text-[#777991]"
+                  }`}
+                >
                   Manage your learning centre
                 </small>
               </span>
+
               <b
-                className="shrink-0 text-xl text-[#5546a7] transition-transform group-hover:translate-x-1"
+                className={`shrink-0 text-xl transition-transform group-hover:translate-x-1 ${
+                  pressedRole === "admin" ? "text-white" : "text-[#5546a7]"
+                }`}
                 aria-hidden="true"
               >
                 →
@@ -116,26 +137,40 @@ export default function PublicHomePage() {
             </Link>
 
             <Link
-              className="home-button group flex min-h-[106px] w-full items-center gap-[19px] rounded-[20px] border border-[#ece7fa] bg-white px-5 py-4 text-[#121b49] no-underline shadow-[0_10px_25px_#4831a00c] transition duration-200 hover:-translate-y-0.5 hover:border-[#d9d0fb] hover:shadow-[0_12px_28px_#4831a018] active:translate-y-px focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#aa98ff] sm:px-6"
+              className={`${loginButtonBase} ${
+                pressedRole === "student" ? loginButtonPressed : ""
+              }`}
               href="/student/login"
               onClick={(event) => navigateToLogin(event, "student")}
             >
               <span
-                className="flex size-[52px] shrink-0 items-center justify-center rounded-2xl bg-[#eaf7ef] text-2xl text-[#34a967]"
+                className={`flex size-[52px] shrink-0 items-center justify-center rounded-2xl bg-[#eaf7ef] text-2xl text-[#34a967] ${
+                  pressedRole === "student" ? "bg-white/20 text-white" : ""
+                }`}
                 aria-hidden="true"
               >
                 ♙
               </span>
+
               <span className="flex min-w-0 flex-1 flex-col gap-1">
                 <strong className="text-base font-bold sm:text-lg">
                   Student / Parent Login
                 </strong>
-                <small className="text-sm text-[#777991]">
+                <small
+                  className={`text-sm ${
+                    pressedRole === "student"
+                      ? "text-white"
+                      : "text-[#777991]"
+                  }`}
+                >
                   View your learning progress
                 </small>
               </span>
+
               <b
-                className="shrink-0 text-xl text-[#5546a7] transition-transform group-hover:translate-x-1"
+                className={`shrink-0 text-xl transition-transform group-hover:translate-x-1 ${
+                  pressedRole === "student" ? "text-white" : "text-[#5546a7]"
+                }`}
                 aria-hidden="true"
               >
                 →
@@ -165,7 +200,13 @@ export default function PublicHomePage() {
             className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#f0ebff] text-[#7255e8]"
             aria-hidden="true"
           >
-            <svg className="size-6 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              className="size-6 fill-none stroke-current"
+              viewBox="0 0 24 24"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="m2 9 10-5 10 5-10 5L2 9Z" />
               <path d="M6 11v5c3.5 3 8.5 3 12 0v-5M22 9v6" />
             </svg>
@@ -185,7 +226,13 @@ export default function PublicHomePage() {
             className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#f0ebff] text-[#7255e8]"
             aria-hidden="true"
           >
-            <svg className="size-6 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              className="size-6 fill-none stroke-current"
+              viewBox="0 0 24 24"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="9" cy="8" r="3" />
               <circle cx="17" cy="9" r="2.5" />
               <path d="M3.5 19c.4-3.3 2.1-5 5.5-5s5.1 1.7 5.5 5M15 14c3.3-.3 5.1 1.4 5.5 4" />
@@ -206,7 +253,13 @@ export default function PublicHomePage() {
             className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#f0ebff] text-[#7255e8]"
             aria-hidden="true"
           >
-            <svg className="size-6 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              className="size-6 fill-none stroke-current"
+              viewBox="0 0 24 24"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M4 20v-6h4v6M10 20V9h4v11M16 20V4h4v16" />
             </svg>
           </span>
