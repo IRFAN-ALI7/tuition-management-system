@@ -28,6 +28,7 @@ type Props = {
   setProfileDraft: Dispatch<SetStateAction<ProfileDraft>>;
 
   setAuthenticated: Dispatch<SetStateAction<boolean>>;
+  setAuthChecking: Dispatch<SetStateAction<boolean>>;
   setLoading: Dispatch<SetStateAction<boolean>>;
   setPageError: Dispatch<SetStateAction<string>>;
 
@@ -57,6 +58,7 @@ export default function useAdminWorkspace({
   setAdminProfile,
   setProfileDraft,
   setAuthenticated,
+  setAuthChecking,
   setLoading,
   setPageError,
   activateRole,
@@ -97,8 +99,6 @@ export default function useAdminWorkspace({
         email: profileResult.profile.email,
         image: profileResult.profile.image,
       });
-
-      setAuthenticated(true);
     } catch (error) {
       setPageError(
         error instanceof Error
@@ -136,7 +136,7 @@ export default function useAdminWorkspace({
       );
     }, 0);
 
-    let active = true;
+        let active = true;
 
     void fetch(`${API}/auth/session`, {
       credentials: "include",
@@ -146,23 +146,37 @@ export default function useAdminWorkspace({
         if (!active) return;
 
         if (!session) {
+          setAuthenticated(false);
           clearRole();
+          setAuthChecking(false);
           return;
         }
 
         if (session.user?.role !== "admin") {
+          setAuthenticated(false);
           clearRole();
           setPageError(
             "An admin account is required to open this workspace.",
           );
+          setAuthChecking(false);
           return;
         }
 
         activateRole("admin");
+
+        // Session verified: show admin dashboard immediately.
+        setAuthenticated(true);
+        setAuthChecking(false);
+
+        // Load dashboard data in the background.
         void loadWorkspace(initialDate);
       })
       .catch(() => {
-        if (active) clearRole();
+        if (!active) return;
+
+        setAuthenticated(false);
+        clearRole();
+        setAuthChecking(false);
       });
 
     return () => {

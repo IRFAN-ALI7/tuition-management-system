@@ -114,8 +114,9 @@ export default function Home() {
   const { dark, activateRole, clearRole } = useTheme();
   const [mobileMenu, setMobileMenu] = useState(false);
 
-  const [authenticated, setAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(false);
+   const [authenticated, setAuthenticated] = useState(false);
+   const [authChecking, setAuthChecking] = useState(true);
+   const [loading, setLoading] = useState(false);
 
   const {
   directory,
@@ -201,7 +202,8 @@ const {
   setAdminProfile,
   setProfileDraft,
 
-  setAuthenticated,
+    setAuthenticated,
+  setAuthChecking,
   setLoading,
   setPageError,
 
@@ -615,7 +617,16 @@ const handleLogout = async () => {
               </div>
             )}
 
-            {!authenticated ? (
+            
+
+               {authChecking ? (
+                   <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+                 <p className="mt-4 text-sm font-medium text-gray-600 dark:text-gray-300">
+                 Checking admin session...
+                </p>
+                </div>
+             ) : !authenticated ? (
               <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900">
                 <div className="mb-3 text-4xl">♙</div>
 

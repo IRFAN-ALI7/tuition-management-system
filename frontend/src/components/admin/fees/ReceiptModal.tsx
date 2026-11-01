@@ -3,7 +3,6 @@
 
 import {
   FeePayment,
-  MONTHS,
   money,
   outlineButtonClass,
   primaryButtonClass,
@@ -16,7 +15,71 @@ type Props = {
   onClose: () => void;
 };
 
+function formatDate(value?: string) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+function formatDateTime(value?: string) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+}
+
 export default function ReceiptModal({ payment, onClose }: Props) {
+  const student = payment.student;
+  const details = payment.receiptDetails;
+
+  const receiptFields = [
+    { label: "Student Name", value: student?.name ?? "—" },
+    { label: "Father Name", value: student?.fatherName ?? "—" },
+    { label: "Class", value: student?.className ?? "—" },
+    {
+      label: "Admission Date",
+      value: formatDate(student?.admissionDate),
+    },
+    {
+      label: "Monthly Fees",
+      value: money(student?.monthlyFees ?? 0),
+    },
+    {
+      label: "Total Due",
+      value: money(details?.totalDue ?? 0),
+    },
+    {
+      label: "Total Paid",
+      value: money(details?.totalPaid ?? 0),
+    },
+    {
+      label: "Remaining Due",
+      value: money(details?.remainingDue ?? 0),
+    },
+    {
+      label: "Payment Date",
+      value: formatDateTime(payment.actualPaymentDate ?? payment.createdAt),
+    },
+  ];
+
   return (
     <div className={modalBackdropClass} onClick={onClose}>
       <section
@@ -40,6 +103,7 @@ export default function ReceiptModal({ payment, onClose }: Props) {
             <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-2xl text-white">
               ✳
             </span>
+
             <div>
               <strong className="block text-lg font-bold text-slate-900">
                 Udaan Learning Centre
@@ -59,78 +123,22 @@ export default function ReceiptModal({ payment, onClose }: Props) {
             Payment Receipt
           </h2>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-            <span className="text-slate-500">Receipt No.</span>
-            <strong className="break-words text-right text-slate-900">
-              {payment.receiptNumber}
-            </strong>
+          <div className="mt-6 divide-y divide-slate-200 border-y border-slate-200">
+            {receiptFields.map((field) => (
+              <div
+                key={field.label}
+                className="grid grid-cols-2 gap-3 py-3 text-sm"
+              >
+                <span className="text-slate-500">
+                  {field.label}
+                </span>
 
-            <span className="text-slate-500">Payment Date</span>
-            <strong className="text-right text-slate-900">
-              {payment.paymentDate}
-            </strong>
-          </div>
-
-          <div className="mt-5 rounded-xl bg-slate-50 p-4">
-            <strong className="block text-base text-slate-900">
-              {payment.student?.name ?? "Student"}
-            </strong>
-            <span className="mt-1 block text-sm text-slate-500">
-              {payment.student?.studentId ?? ""} ·{" "}
-              {payment.student?.phone ?? ""}
-            </span>
-          </div>
-
-          <div className="mt-6">
-            <strong className="text-sm font-semibold text-slate-900">
-              Fee allocation
-            </strong>
-
-            <div className="mt-2 divide-y divide-slate-200 border-y border-slate-200">
-              {payment.allocations.map((allocation) => (
-                <div
-                  key={`${allocation.year}-${allocation.month}`}
-                  className="flex items-center justify-between gap-3 py-3 text-sm"
-                >
-                  <span className="text-slate-600">
-                    {MONTHS[allocation.month - 1]} {allocation.year}
-                  </span>
-                  <b className="text-slate-900">
-                    {money(allocation.amount)}
-                  </b>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-5 flex items-center justify-between gap-3 rounded-xl bg-blue-50 p-4">
-            <span className="text-sm font-medium text-blue-800">
-              Amount received
-            </span>
-            <strong className="text-xl font-bold text-blue-800">
-              {money(payment.amount)}
-            </strong>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-            <span className="text-slate-500">Payment method</span>
-            <strong className="text-right text-slate-900">
-              {payment.method}
-            </strong>
-
-            {payment.referenceNumber && (
-              <>
-                <span className="text-slate-500">Reference</span>
                 <strong className="break-words text-right text-slate-900">
-                  {payment.referenceNumber}
+                  {field.value}
                 </strong>
-              </>
-            )}
+              </div>
+            ))}
           </div>
-
-          <p className="mt-6 text-center text-sm text-slate-500">
-            Thank you. Please retain this receipt for your records.
-          </p>
         </div>
 
         <div className="print:hidden mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">

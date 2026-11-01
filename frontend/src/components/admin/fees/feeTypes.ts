@@ -11,6 +11,8 @@ export type FeeStudent = {
   className?: string;
   monthlyFees?: number | null;
   active?: boolean;
+  fatherName?: string;
+admissionDate?: string;
 };
 
 export type FeeRow = {
@@ -51,6 +53,12 @@ export type FeePayment = {
   referenceNumber: string;
   allocations: FeeAllocation[];
   createdAt?: string;
+  actualPaymentDate?: string;
+  receiptDetails?: {
+  totalDue: number;
+  totalPaid: number;
+  remainingDue: number;
+};
 };
 
 export type UnpaidMonth = FeeAllocation & {

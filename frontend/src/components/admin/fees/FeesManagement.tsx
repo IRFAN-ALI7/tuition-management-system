@@ -188,6 +188,21 @@ export function FeesManagement({
     setNotice("");
     setError("");
   };
+    // Load complete receipt details
+  const openReceipt = async (paymentId: string) => {
+    setError("");
+
+    try {
+      const result = await feeApi(`/fees/payments/${paymentId}`);
+      setReceipt(result.payment as FeePayment);
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not load receipt.",
+      );
+    }
+  };
 
   // Refresh data after successful payment
   const refreshAfterPayment = async () => {
@@ -318,11 +333,11 @@ export function FeesManagement({
           initialStudentId={initialStudentId}
           onClose={() => setPaymentOpen(false)}
           onSaved={async (payment) => {
-            setPaymentOpen(false);
-            setReceipt(payment);
-            setNotice("Payment saved successfully.");
+          setPaymentOpen(false);
+           setNotice("Payment saved successfully.");
 
-            await refreshAfterPayment();
+           await refreshAfterPayment();
+           await openReceipt(payment._id);
           }}
         />
       )}
@@ -585,7 +600,7 @@ export function FeesManagement({
                           <button
                             type="button"
                             className={outlineButtonClass}
-                            onClick={() => setReceipt(payment)}
+                            onClick={() => void openReceipt(payment._id)}
                           >
                             Receipt
                           </button>

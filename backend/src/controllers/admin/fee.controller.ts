@@ -7,6 +7,7 @@ import type { AuthRequest } from "../../middleware/authenticate";
 import FeeLedger from "../../models/FeeLedger.model";
 import FeePayment from "../../models/FeePayment.model";
 import Student from "../../models/Student.model";
+import { ensureFeeLedgersThrough } from "../../services/feeLedger.service";
 
 const roundMoney = (value: number) =>
   Math.round((value + Number.EPSILON) * 100) / 100;
@@ -61,93 +62,6 @@ const studentStartMonth = (
   return null;
 };
 
-/** Backfill missing month ledgers idempotently; fee snapshots never overwrite payments or prior amounts. */
-async function ensureLedgersThrough(
-  targetYear: number,
-  targetMonth: number
-) {
-  const target = monthSerial(targetYear, targetMonth);
-
-  const students = await Student.find({
-    active: true,
-    monthlyFees: { $gt: 0 },
-  })
-    .select("_id monthlyFees admissionDate createdAt")
-    .lean();
-
-  if (!students.length) return;
-
-  const existing = await FeeLedger.find({
-    studentId: { $in: students.map((student) => student._id) },
-    year: { $lte: targetYear },
-  })
-    .select("studentId year month")
-    .lean();
-
-  const existingKeys = new Set(
-    existing.map(
-      (ledger) =>
-        `${String(ledger.studentId)}-${ledger.year}-${ledger.month}`
-    )
-  );
-
-  let operations: Record<string, unknown>[] = [];
-
-  for (const student of students) {
-    const monthlyFee = student.monthlyFees;
-
-    // Invalid or zero monthly fees ke liye ledger create nahi hoga.
-    if (
-      typeof monthlyFee !== "number" ||
-      !Number.isFinite(monthlyFee) ||
-      monthlyFee <= 0
-    ) {
-      continue;
-    }
-
-    const start = Math.max(
-      studentStartMonth(student.admissionDate, student.createdAt) ?? target,
-      monthSerial(2000, 1)
-    );
-
-    for (let serial = start; serial <= target; serial += 1) {
-      const { year, month } = fromSerial(serial);
-
-      if (existingKeys.has(`${String(student._id)}-${year}-${month}`)) {
-        continue;
-      }
-
-      operations.push({
-        updateOne: {
-          filter: { studentId: student._id, year, month },
-          update: {
-            $setOnInsert: {
-              studentId: student._id,
-              year,
-              month,
-              feeAmount: roundMoney(monthlyFee),
-              paidAmount: 0,
-            },
-          },
-          upsert: true,
-        },
-      });
-
-      if (operations.length >= 500) {
-        await FeeLedger.bulkWrite(operations as any[], {
-          ordered: false,
-        });
-        operations = [];
-      }
-    }
-  }
-
-  if (operations.length) {
-    await FeeLedger.bulkWrite(operations as any[], {
-      ordered: false,
-    });
-  }
-}
 
 function paymentPublic(payment: any, student?: any) {
   return {
@@ -160,10 +74,15 @@ function paymentPublic(payment: any, student?: any) {
           studentId: student.studentId,
           name: student.name,
           phone: student.phone,
+          fatherName: student.fatherName,
+          className: student.className,
+          admissionDate: student.admissionDate,
+          monthlyFees: student.monthlyFees,
         }
       : undefined,
     amount: payment.amount,
     paymentDate: payment.paymentDate,
+    actualPaymentDate: payment.createdAt,
     method: payment.method,
     referenceNumber: payment.referenceNumber,
     allocations: payment.allocations,
@@ -197,7 +116,7 @@ export async function getFees(
       return;
     }
 
-    await ensureLedgersThrough(currentYear, currentMonth);
+   await ensureFeeLedgersThrough(currentYear, currentMonth);
 
     const requestedPage = Number.parseInt(
       String(request.query.page ?? "1"),
@@ -561,7 +480,7 @@ export async function getStudentFees(
         ? Math.min(100, Math.max(1, requestedPaymentLimit))
         : 0;
 
-    await ensureLedgersThrough(current.year, current.month);
+     await ensureFeeLedgersThrough(current.year, current.month);
 
     const student = (await Student.findById(studentId)
       .populate("batchId", "name startTime endTime")
@@ -693,6 +612,7 @@ export async function getStudentFees(
 }
 
 // GET /payments/:paymentId
+// GET /payments/:paymentId
 export async function getPaymentReceipt(
   request: Request,
   response: Response,
@@ -718,17 +638,61 @@ export async function getPaymentReceipt(
     }
 
     const student = await Student.findById(payment.studentId)
-      .select("studentId name phone")
+      .select(
+        "studentId name phone fatherName className admissionDate monthlyFees"
+      )
       .lean();
 
+    if (!student) {
+      response.status(404).json({
+        error: "Student details not found.",
+      });
+      return;
+    }
+
+    const ledgerTotals = await FeeLedger.aggregate([
+      {
+        $match: {
+          studentId: student._id,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalDue: { $sum: "$feeAmount" },
+          totalPaid: { $sum: "$paidAmount" },
+          remainingDue: {
+            $sum: {
+              $max: [
+                0,
+                { $subtract: ["$feeAmount", "$paidAmount"] },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const totals = ledgerTotals[0] ?? {
+      totalDue: 0,
+      totalPaid: 0,
+      remainingDue: 0,
+    };
+
     response.json({
-      payment: paymentPublic(payment, student),
+      payment: {
+        ...paymentPublic(payment, student),
+        receiptDetails: {
+          totalDue: roundMoney(totals.totalDue),
+          totalPaid: roundMoney(totals.totalPaid),
+          remainingDue: roundMoney(totals.remainingDue),
+        },
+      },
     });
   } catch (error) {
     next(error);
   }
 }
-
 // POST /payments
 export async function createFeePayment(
   request: Request,
@@ -909,7 +873,7 @@ export async function createFeePayment(
     }
 
     if (student.active) {
-      await ensureLedgersThrough(today.year, today.month);
+      await ensureFeeLedgersThrough(today.year, today.month);
     }
 
     const ledgers = (await FeeLedger.find({
