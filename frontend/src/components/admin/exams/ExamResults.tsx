@@ -1,0 +1,211 @@
+
+"use client";
+
+import type { Dispatch, SetStateAction } from "react";
+import type { ExamDetail, ExamResultRow } from "./examTypes";
+
+type ExamResultsProps = {
+  detail: ExamDetail | null;
+  sortedResults: ExamResultRow[];
+  sortBy: string;
+  setSortBy: (value: string) => void;
+  setDetail: (value: ExamDetail | null) => void;
+  setMarkDraft: Dispatch<SetStateAction<Record<string, string>>>;
+  setMarksOpen: (open: boolean) => void;
+  modalBackdropClass: string;
+  modalClass: string;
+  sectionKickerClass: string;
+  labelClass: string;
+  inputClass: string;
+  tableClass: string;
+  tableHeaderClass: string;
+  cellClass: string;
+  buttonClass: string;
+  primaryButtonClass: string;
+  date: (value: string) => string;
+  statusClass: (pending: boolean) => string;
+};
+
+export function ExamResults({
+  detail,
+  sortedResults,
+  sortBy,
+  setSortBy,
+  setDetail,
+  setMarkDraft,
+  setMarksOpen,
+  modalBackdropClass,
+  modalClass,
+  sectionKickerClass,
+  labelClass,
+  inputClass,
+  tableClass,
+  tableHeaderClass,
+  cellClass,
+  buttonClass,
+  primaryButtonClass,
+  date,
+  statusClass,
+}: ExamResultsProps) {
+  if (!detail) return null;
+
+  return (
+    <div
+      className={modalBackdropClass}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) setDetail(null);
+      }}
+    >
+      <section
+        className={`${modalClass} max-w-5xl`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="exam-results-title"
+      >
+        <button
+          className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-500 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          onClick={() => setDetail(null)}
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+        <div className={sectionKickerClass}>EXAM RESULTS</div>
+
+        <h2
+          id="exam-results-title"
+          className="mt-2 pr-8 text-2xl font-bold text-slate-900 dark:text-white"
+        >
+          {detail.exam.name || detail.exam.subject}
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+          {date(detail.exam.examDate)} · {detail.exam.batch?.name} ·{" "}
+          {detail.exam.subject} · {detail.exam.totalMarks} marks
+        </p>
+
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            {
+              label: "Average",
+              value:
+                detail.summary.averagePercentage === null
+                  ? "—"
+                  : detail.summary.averagePercentage + "%",
+            },
+            {
+              label: "Highest",
+              value: detail.summary.highestMarks ?? "—",
+            },
+            {
+              label: "Lowest",
+              value: detail.summary.lowestMarks ?? "—",
+            },
+            {
+              label: "Entered / Pending",
+              value: detail.summary.entered + " / " + detail.summary.pending,
+            },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60"
+            >
+              <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
+                {item.label}
+              </span>
+              <strong className="mt-2 block text-xl font-bold text-slate-900 dark:text-white">
+                {item.value}
+              </strong>
+            </div>
+          ))}
+        </div>
+
+        <label className={`${labelClass} mt-5 max-w-sm`}>
+          Sort results
+          <select
+            className={inputClass}
+            value={sortBy}
+            onChange={(event) => setSortBy(event.target.value)}
+          >
+            <option value="percentage">Percentage (high to low)</option>
+            <option value="marks">Marks (high to low)</option>
+          </select>
+        </label>
+
+        <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <table className={tableClass}>
+            <thead className={tableHeaderClass}>
+              <tr>
+                {["Student ID", "Student", "Marks", "Percentage", "Status"].map(
+                  (heading) => (
+                    <th className="px-4 py-3.5" key={heading}>
+                      {heading}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+
+            <tbody>
+              {sortedResults.map((row) => (
+                <tr
+                  key={row.student._id}
+                  className="hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                >
+                  <td className={cellClass}>
+                    {row.student.studentId || "—"}
+                  </td>
+
+                  <td className={`${cellClass} font-medium`}>
+                    {row.student.name}
+                  </td>
+
+                  <td className={cellClass}>
+                    {row.obtainedMarks === null
+                      ? "—"
+                      : row.obtainedMarks + " / " + detail.exam.totalMarks}
+                  </td>
+
+                  <td className={cellClass}>
+                    {row.percentage === null ? "—" : row.percentage + "%"}
+                  </td>
+
+                  <td className={cellClass}>
+                    <span className={statusClass(row.obtainedMarks === null)}>
+                      {row.saveStatus}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
+          <button className={buttonClass} onClick={() => setDetail(null)}>
+            Close
+          </button>
+
+          <button
+            className={primaryButtonClass}
+            onClick={() => {
+              setMarkDraft(
+                Object.fromEntries(
+                  detail.results.map((row) => [
+                    row.student._id,
+                    row.obtainedMarks === null
+                      ? ""
+                      : String(row.obtainedMarks),
+                  ])
+                )
+              );
+              setMarksOpen(true);
+            }}
+          >
+            Enter/Edit Marks
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}

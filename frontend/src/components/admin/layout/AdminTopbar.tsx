@@ -71,24 +71,30 @@ export default function AdminTopbar({
   };
 
   return (
-    <header className="sticky top-0 z-20 flex min-h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 dark:border-gray-800 dark:bg-gray-950 md:px-6">
+    <header className="sticky top-0 z-20 flex min-h-16 w-full items-center gap-2 border-b border-gray-200 bg-white px-3 py-2 dark:border-gray-800 dark:bg-gray-950 sm:gap-3 sm:px-5 md:px-6">
+      {/* Mobile menu button */}
       <button
-        className="flex flex-col gap-1.5 lg:hidden"
+        type="button"
+        className="flex h-10 w-10 shrink-0 flex-col items-center justify-center gap-1.5 rounded-lg transition hover:bg-gray-100 dark:hover:bg-gray-800 lg:hidden"
         aria-label="Open navigation"
         onClick={() => setMobileMenu(true)}
       >
-        <i className="h-0.5 w-5 bg-current" />
-        <i className="h-0.5 w-5 bg-current" />
-        <i className="h-0.5 w-5 bg-current" />
+        <span className="h-0.5 w-5 rounded-full bg-current" />
+        <span className="h-0.5 w-5 rounded-full bg-current" />
+        <span className="h-0.5 w-5 rounded-full bg-current" />
       </button>
 
-      <div className="hidden items-center gap-2 text-sm sm:flex">
-        <span className="text-gray-500">Admin</span>
-        <b className="text-gray-400">/</b>
-        <strong>{section}</strong>
+      {/* Breadcrumb */}
+      <div className="hidden min-w-0 items-center gap-2 text-sm sm:flex">
+        <span className="text-gray-500 dark:text-gray-400">Admin</span>
+        <span className="text-gray-400">/</span>
+        <strong className="truncate text-gray-900 dark:text-white">
+          {section}
+        </strong>
       </div>
 
-      <label className="ml-auto flex max-w-md flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 dark:border-gray-700">
+      {/* Global Search */}
+      <label className="ml-auto flex min-w-0 max-w-md flex-1 items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 dark:border-gray-700 dark:bg-gray-900 dark:focus-within:ring-blue-900/30">
         <svg
           viewBox="0 0 20 20"
           className="h-5 w-5 shrink-0 text-gray-400"
@@ -112,7 +118,7 @@ export default function AdminTopbar({
 
         <input
           ref={globalSearchRef}
-          className="min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none"
+          className="min-w-0 w-full bg-transparent py-2.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-white"
           aria-label="Search students"
           placeholder="Search students..."
           value={search}
@@ -122,18 +128,25 @@ export default function AdminTopbar({
           }}
         />
 
-        <kbd className="hidden rounded bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-gray-800 sm:block">
+        <kbd className="hidden shrink-0 rounded-md bg-white px-2 py-1 text-xs text-gray-500 shadow-sm dark:bg-gray-800 sm:block">
           Ctrl K
         </kbd>
       </label>
 
-      <div className="flex items-center gap-3">
+      {/* Header Actions */}
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        {/* Notifications */}
         <button
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          type="button"
+          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition hover:bg-gray-100 dark:hover:bg-gray-800"
           aria-label="Notifications and notices"
           onClick={() => setSection("Notices")}
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            aria-hidden="true"
+          >
             <path
               d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 13h4"
               fill="none"
@@ -143,20 +156,24 @@ export default function AdminTopbar({
               strokeLinejoin="round"
             />
           </svg>
-          <i className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
         </button>
 
+        {/* Admin Profile */}
         <button
-          className="flex items-center gap-2 rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+          type="button"
+          className="flex min-w-0 items-center gap-2 rounded-xl p-1 transition hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label="Open admin profile"
           onClick={() => setSection("Profile")}
         >
-          <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gray-200 text-xs font-semibold dark:bg-gray-800">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
             {adminProfile?.image ? (
               <NextImage
                 src={adminProfile.image}
-                alt=""
+                alt="Admin profile"
                 width={48}
                 height={48}
+                className="h-full w-full object-cover"
                 unoptimized
               />
             ) : (
@@ -169,20 +186,23 @@ export default function AdminTopbar({
             )}
           </span>
 
-          <span className="hidden text-left sm:block">
-            <strong className="block text-xs">
+          <span className="hidden min-w-0 text-left sm:block">
+            <strong className="block max-w-28 truncate text-xs text-gray-900 dark:text-white">
               {adminProfile?.name ?? "Admin"}
             </strong>
-            <small className="text-xs text-gray-500">Administrator</small>
+            <small className="text-xs text-gray-500 dark:text-gray-400">
+              Administrator
+            </small>
           </span>
 
-          <b className="hidden text-gray-400 sm:block">⌄</b>
+          <span className="hidden text-gray-400 sm:block">⌄</span>
         </button>
 
+        {/* Logout */}
         <button
           type="button"
           onClick={onLogout}
-          className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950"
+          className="shrink-0 rounded-lg border border-red-200 px-2.5 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 sm:px-3 sm:text-sm dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
         >
           Logout
         </button>

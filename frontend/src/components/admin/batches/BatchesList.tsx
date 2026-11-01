@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Batch, BatchSummary } from "../shared/types";
@@ -32,23 +33,27 @@ export default function BatchesList({
   onDelete,
 }: BatchesListProps) {
   return (
-    <section className="flex flex-col gap-5">
+    <section className="flex min-w-0 flex-col gap-5">
+      {/* Header */}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold">Classes &amp; Batches</h1>
+          <h1 className="text-2xl font-bold">
+            Classes &amp; Batches
+          </h1>
           <p className="text-sm text-gray-500">
             Manage batch schedules and assigned students
           </p>
         </div>
 
         <button
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white"
+          className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 sm:w-auto"
           onClick={onCreate}
         >
           <span>＋</span> Create Batch
         </button>
       </div>
 
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <SummaryCard
           label="Total Batches"
@@ -66,7 +71,8 @@ export default function BatchesList({
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      {/* Batches Table */}
+      <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         {error && (
           <div
             className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
@@ -80,11 +86,11 @@ export default function BatchesList({
           <table className="w-full min-w-[650px] text-left text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 dark:bg-gray-800">
               <tr>
-                <th className="p-4">Batch Name</th>
-                <th className="p-4">Time</th>
-                <th className="p-4">Total Students</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Actions</th>
+                <th className="p-3 sm:p-4">Batch Name</th>
+                <th className="p-3 sm:p-4">Time</th>
+                <th className="p-3 sm:p-4">Total Students</th>
+                <th className="p-3 sm:p-4">Status</th>
+                <th className="p-3 sm:p-4">Actions</th>
               </tr>
             </thead>
 
@@ -101,18 +107,22 @@ export default function BatchesList({
                     key={batch._id}
                     className="border-t border-gray-100 dark:border-gray-800"
                   >
-                    <td className="p-4 font-semibold">{batch.name}</td>
+                    <td className="p-3 font-semibold sm:p-4">
+                      {batch.name}
+                    </td>
 
-                    <td className="p-4">
+                    <td className="whitespace-nowrap p-3 sm:p-4">
                       {prettyTime(batch.startTime)} –{" "}
                       {prettyTime(batch.endTime)}
                     </td>
 
-                    <td className="p-4">{batch.students.length}</td>
+                    <td className="p-3 sm:p-4">
+                      {batch.students.length}
+                    </td>
 
-                    <td className="p-4">
+                    <td className="p-3 sm:p-4">
                       <span
-                        className={`rounded-full px-2 py-1 text-xs ${
+                        className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ${
                           batch.active
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-700"
@@ -122,24 +132,24 @@ export default function BatchesList({
                       </span>
                     </td>
 
-                    <td className="p-4">
+                    <td className="p-3 sm:p-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <button
-                          className="rounded border border-gray-200 px-3 py-1.5 dark:border-gray-700"
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium transition hover:bg-gray-50 sm:text-sm dark:border-gray-700 dark:hover:bg-gray-800"
                           onClick={() => onEdit(batch)}
                         >
                           Edit
                         </button>
 
                         <button
-                          className="rounded border border-gray-200 px-3 py-1.5 dark:border-gray-700"
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium transition hover:bg-gray-50 sm:text-sm dark:border-gray-700 dark:hover:bg-gray-800"
                           onClick={() => onToggle(batch)}
                         >
                           {batch.active ? "Deactivate" : "Activate"}
                         </button>
 
                         <button
-                          className="rounded border border-red-200 px-3 py-1.5 text-red-600 dark:border-red-900"
+                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 sm:text-sm dark:border-red-900 dark:hover:bg-red-950"
                           onClick={() => onDelete(batch)}
                         >
                           Delete
@@ -176,7 +186,7 @@ function SummaryCard({
   value: string;
 }) {
   return (
-    <article className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
+    <article className="flex min-w-0 flex-col rounded-xl border border-gray-200 bg-white p-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900">
       <small className="text-gray-500">{label}</small>
       <strong className="mt-2 block text-2xl">{value}</strong>
     </article>

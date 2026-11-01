@@ -6,6 +6,14 @@ import Link from "next/link";
 import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
+import { api, API } from "@/lib/api";
+
+import useAdminAttendance from "@/components/admin/hooks/useAdminAttendance";
+import useAdminDashboard from "@/components/admin/hooks/useAdminDashboard";
+import useAdminStudents from "@/components/admin/hooks/useAdminStudents";
+import useAdminBatches from "@/components/admin/hooks/useAdminBatches";
+import useAdminProfile from "@/components/admin/hooks/useAdminProfile";
+import useAdminWorkspace from "@/components/admin/hooks/useAdminWorkspace";
 
 import { FeesManagement } from "@/components/admin/fees/FeesManagement";
 import { ExamsManagement } from "@/components/admin/exams/ExamsManagement";
@@ -13,6 +21,7 @@ import { NoticesManagement } from "@/components/admin/notices/NoticesManagement"
 
 import DashboardOverview from "@/components/admin/dashboard/DashboardOverview";
 import StudentsList from "@/components/admin/students/StudentsList";
+import StudentEditorModal from "@/components/admin/students/StudentEditorModal";
 import BatchesList from "@/components/admin/batches/BatchesList";
 import AttendanceManagement from "@/components/admin/attendance/AttendanceManagement";
 
@@ -37,10 +46,8 @@ import type {
   AdminProfile,
   Section,
   BatchDraft,
+  StudentEditDraft,
 } from "@/components/admin/shared/types";
-
-const API =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
 const todayISO = () => {
   const d = new Date();
@@ -51,47 +58,6 @@ const todayISO = () => {
   )}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-const prettyTime = (time: string) => {
-  const [h, m] = time.split(":").map(Number);
-
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${
-    h >= 12 ? "PM" : "AM"
-  }`;
-};
-
-async function api(path: string, init: RequestInit = {}) {
-  const response = await fetch(`${API}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw Object.assign(
-      new Error(data.error ?? "Request failed. Please try again."),
-      { details: data },
-    );
-  }
-
-  return data;
-}
-
-type StudentEditDraft = {
-  name: string;
-  fatherName: string;
-  phone: string;
-  address: string;
-  gender: string;
-  className: string;
-  batchId: string;
-  admissionDate: string;
-  monthlyFees: string;
-};
 
 const menu: { label: Section; icon: string }[] = [
   { label: "Dashboard", icon: "home" },
@@ -106,270 +72,23 @@ const menu: { label: Section; icon: string }[] = [
   { label: "Settings", icon: "settings" },
 ];
 
-function StudentEditorModal({
-  student,
-  draft,
-  setDraft,
-  batches,
-  error,
-  onClose,
-  onSubmit,
-}: {
-  student: Student;
-  draft: StudentEditDraft;
-  setDraft: (draft: StudentEditDraft) => void;
-  batches: Batch[];
-  error: string;
-  onClose: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  const currentBatch =
-    typeof student.batchId === "object" && student.batchId
-      ? student.batchId
-      : null;
-
-  const set = (key: keyof StudentEditDraft, value: string) =>
-    setDraft({ ...draft, [key]: value });
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4"
-      onClick={onClose}
-    >
-      <section
-        className="relative my-auto max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="student-edit-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button
-          className="absolute right-4 top-4 text-2xl text-gray-500"
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-        >
-          ×
-        </button>
-
-        <div className="mb-2 text-xs font-semibold tracking-wider text-blue-600">
-          STUDENT MANAGEMENT
-        </div>
-
-        <h2 id="student-edit-title" className="text-xl font-bold">
-          Edit student
-        </h2>
-
-        <p className="mb-5 mt-1 text-sm text-gray-500">
-          Update profile details or move this student to another active batch.
-        </p>
-
-        {error && (
-          <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={onSubmit}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1 text-sm">
-              Student Name
-              <input
-                required
-                maxLength={100}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
-                value={draft.name}
-                onChange={(event) => set("name", event.target.value)}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              Father's Name
-              <input
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
-                value={draft.fatherName}
-                onChange={(event) => set("fatherName", event.target.value)}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              Phone
-              <input
-                required
-                type="tel"
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
-                value={draft.phone}
-                onChange={(event) => set("phone", event.target.value)}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              Gender
-              <select
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
-                value={draft.gender}
-                onChange={(event) => set("gender", event.target.value)}
-              >
-                <option value="">Not specified</option>
-                <option>Male</option>
-                <option>Female</option>
-                <option>Other</option>
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              Class
-              <select
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
-                value={draft.className}
-                onChange={(event) => set("className", event.target.value)}
-              >
-                <option value="">Not specified</option>
-                {Array.from({ length: 12 }, (_, index) => `Class ${index + 1}`).map(
-                  (value) => (
-                    <option key={value}>{value}</option>
-                  ),
-                )}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              Batch
-              <select
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
-                value={draft.batchId}
-                onChange={(event) => set("batchId", event.target.value)}
-              >
-                <option value="">Unassigned</option>
-
-                {currentBatch && !currentBatch.active && (
-                  <option value={currentBatch._id}>
-                    {currentBatch.name} (Inactive batch)
-                  </option>
-                )}
-
-                {batches
-                  .filter((batch) => batch.active)
-                  .map((batch) => (
-                    <option value={batch._id} key={batch._id}>
-                      {batch.name} — {prettyTime(batch.startTime)}–
-                      {prettyTime(batch.endTime)}
-                    </option>
-                  ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              Monthly Fees (₹)
-              <input
-                required
-                min="0"
-                step="0.01"
-                type="number"
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
-                value={draft.monthlyFees}
-                onChange={(event) => set("monthlyFees", event.target.value)}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              Admission Date
-              <input
-                required
-                type="date"
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
-                value={draft.admissionDate}
-                onChange={(event) => set("admissionDate", event.target.value)}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-              Address
-              <textarea
-                required
-                rows={3}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 dark:border-gray-700 dark:bg-gray-950"
-                value={draft.address}
-                onChange={(event) => set("address", event.target.value)}
-              />
-            </label>
-          </div>
-
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              type="button"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white"
-            >
-              Save changes →
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-
 export default function Home() {
   const router = useRouter();
   const globalSearchRef = useRef<HTMLInputElement>(null);
 
-  const [students, setStudents] = useState<Student[]>([]);
-  const [batches, setBatches] = useState<Batch[]>([]);
 
-  const [batchSummary, setBatchSummary] = useState<BatchSummary>({
-    totalBatches: 0,
-    activeBatches: 0,
-    totalStudents: 0,
-  });
+  const {
+  batches,
+  setBatches,
+  batchSummary,
+  refreshBatches,
+} = useAdminBatches();
 
-  const [directory, setDirectory] = useState<Student[]>([]);
   const [batchStudentOptions, setBatchStudentOptions] = useState<Student[]>([]);
-
-  const [studentSummary, setStudentSummary] = useState<StudentSummary>({
-    total: 0,
-    active: 0,
-    inactive: 0,
-    totalBatches: 0,
-    growth: {},
-  });
-
-  const [dashboardFeeSummary, setDashboardFeeSummary] =
-    useState<DashboardFeeSummary>({
-      totalExpected: 0,
-      feesCollected: 0,
-      totalDue: 0,
-      studentsPaid: 0,
-      studentsDue: 0,
-    });
-
-  const [studentPagination, setStudentPagination] =
-    useState<StudentPagination>({
-      page: 1,
-      limit: 20,
-      total: 0,
-      totalPages: 1,
-    });
-
-  const [studentClasses, setStudentClasses] = useState<string[]>([]);
-  const [studentListLoading, setStudentListLoading] = useState(false);
-  const [studentListError, setStudentListError] = useState("");
-
-  const [studentFilters, setStudentFilters] = useState<StudentFilters>({
-    q: "",
-    className: "all",
-    batchId: "all",
-    status: "all",
-    page: 1,
-    limit: 20,
-  });
+      const {
+     dashboardFeeSummary,
+      loadDashboardFees,
+    } = useAdminDashboard();
 
   const [studentEditing, setStudentEditing] = useState<Student | null>(null);
 
@@ -393,26 +112,27 @@ export default function Home() {
   const [section, setSection] = useState<Section>("Dashboard");
   const [greeting, setGreeting] = useState("Good Morning");
 
-  const [saved, setSaved] = useState(false);
   const { dark, activateRole, clearRole } = useTheme();
   const [mobileMenu, setMobileMenu] = useState(false);
-
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
-  const [attendanceSaving, setAttendanceSaving] = useState(false);
 
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const [adminProfile, setAdminProfile] = useState<AdminProfile | null>(null);
-
-  const [profileDraft, setProfileDraft] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    image: "",
-  });
-
-  const [emailOtp, setEmailOtp] = useState("");
+  const {
+  directory,
+  studentSummary,
+  studentPagination,
+  studentClasses,
+  studentListLoading,
+  studentListError,
+  setStudentListError,
+  studentFilters,
+  setStudentFilters,
+  refreshStudents,
+} = useAdminStudents({
+  authenticated,
+  section,
+});
 
   const [pageError, setPageError] = useState("");
   const [notice, setNotice] = useState("");
@@ -428,20 +148,68 @@ export default function Home() {
     studentIds: [],
   });
 
+  const {
+  adminProfile,
+  setAdminProfile,
+  profileDraft,
+  setProfileDraft,
+  emailOtp,
+  setEmailOtp,
+  saveProfile,
+  verifyProfileEmail,
+  resendProfileEmailOtp,
+  chooseProfileImage,
+} = useAdminProfile({
+  setPageError,
+  setNotice,
+});
+
   const [batchSearch, setBatchSearch] = useState("");
 
   const selectedBatch = batches.find((item) => item._id === batchId) ?? null;
 
-  const present = useMemo(
-    () => students.filter((student) => student.status === "present").length,
-    [students],
-  );
+const {
+  students,
+  saved,
+  attendanceLoading,
+  attendanceSaving,
+  present,
+  absent,
+  attendancePercentage,
+  loadAttendance,
+  saveAttendance,
+  setStudents,
+} = useAdminAttendance({
+  batchId,
+  date,
+  selectedBatch,
+  setPageError,
+  setNotice,
+});
 
-  const absent = students.length - present;
+        const { loadWorkspace } = useAdminWorkspace({
+  batchId,
+  refreshBatches,
+  refreshStudents,
+  loadDashboardFees,
+  loadAttendance,
 
-  const attendancePercentage = students.length
-    ? Math.round((present / students.length) * 100)
-    : 0;
+  setBatchId,
+  setDate,
+  setTodayLabel,
+  setGreeting,
+
+  setAdminProfile,
+  setProfileDraft,
+
+  setAuthenticated,
+  setLoading,
+  setPageError,
+
+  activateRole,
+  clearRole,
+});
+
       useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedSection = params.get("section");
@@ -499,233 +267,6 @@ export default function Home() {
     }
   }, []);
 
-  const refreshBatches = async () => {
-    const result = await api("/batches?includeInactive=true");
-
-    setBatches(result.batches as Batch[]);
-
-    if (result.summary) {
-      setBatchSummary(result.summary as BatchSummary);
-    }
-
-    return result.batches as Batch[];
-  };
-
-  const refreshStudents = async () => {
-    const result = await api("/students?page=1&limit=20");
-
-    setDirectory(result.students as Student[]);
-    setStudentSummary(result.summary as StudentSummary);
-    setStudentPagination(result.pagination as StudentPagination);
-    setStudentClasses(result.classes as string[]);
-
-    return result;
-  };
-
-  const loadDashboardFees = async (selectedDate = todayISO()) => {
-    const selected = new Date(`${selectedDate}T12:00:00`);
-
-    try {
-      const result = await api(
-        `/fees?year=${selected.getFullYear()}&month=${
-          selected.getMonth() + 1
-        }&page=1&limit=1`,
-      );
-
-      setDashboardFeeSummary(result.summary as DashboardFeeSummary);
-    } catch {
-      // Fee API errors should not block the rest of the dashboard.
-    }
-  };
-
-  const loadAttendance = async (id: string, selectedDate: string) => {
-    if (!id) {
-      setStudents([]);
-      setSaved(false);
-      setAttendanceLoading(false);
-      return;
-    }
-
-    setAttendanceLoading(true);
-
-    try {
-      const result = await api(`/attendance/${id}?date=${selectedDate}`);
-
-      setStudents(
-        result.attendance.records.map(
-          (entry: {
-            student: Student;
-            status: "present" | "absent";
-          }) => ({
-            ...entry.student,
-            status: entry.status,
-          }),
-        ),
-      );
-
-      setSaved(result.attendance.saved);
-
-      setPageError(
-        !result.batch.active && !result.attendance.saved
-          ? "This batch is inactive. Historical records are available, but new attendance cannot be started."
-          : "",
-      );
-    } finally {
-      setAttendanceLoading(false);
-    }
-  };
-
-  const loadWorkspace = async (selectedDate = todayISO()) => {
-    setLoading(true);
-    setPageError("");
-
-    try {
-      const [, , profileResult] = await Promise.all([
-        refreshBatches(),
-        refreshStudents(),
-        api("/auth/admin/profile"),
-        loadDashboardFees(selectedDate),
-      ]);
-
-      const nextBatches = await refreshBatches();
-
-      const active = nextBatches.filter((item) => item.active);
-
-      const chosen =
-        active.find((item) => item._id === batchId) ??
-        active[0] ??
-        nextBatches[0];
-
-      setBatchId(chosen?._id ?? "");
-
-      if (chosen) {
-        await loadAttendance(chosen._id, selectedDate);
-      }
-
-      setAdminProfile(profileResult.profile as AdminProfile);
-
-      setProfileDraft({
-        name: profileResult.profile.name,
-        phone: profileResult.profile.phone,
-        email: profileResult.profile.email,
-        image: profileResult.profile.image,
-      });
-
-      setAuthenticated(true);
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Could not load the workspace.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const initialDate = todayISO();
-
-    const dateTimer = window.setTimeout(() => {
-      setDate(initialDate);
-
-      setTodayLabel(
-        new Date().toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }),
-      );
-
-      const currentHour = new Date().getHours();
-
-      setGreeting(
-        currentHour < 12
-          ? "Good Morning"
-          : currentHour < 18
-            ? "Good Afternoon"
-            : "Good Evening",
-      );
-    }, 0);
-
-    let active = true;
-
-    void fetch(`${API}/auth/session`, {
-      credentials: "include",
-    })
-      .then(async (response) => (response.ok ? response.json() : null))
-      .then((session) => {
-        if (!active) return;
-
-        if (!session) {
-          clearRole();
-          return;
-        }
-
-        if (session.user?.role !== "admin") {
-          clearRole();
-          setPageError(
-            "An admin account is required to open this workspace.",
-          );
-          return;
-        }
-
-        activateRole("admin");
-        void loadWorkspace(initialDate);
-      })
-      .catch(() => {
-        if (active) clearRole();
-      });
-
-    return () => {
-      active = false;
-      window.clearTimeout(dateTimer);
-    };
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activateRole, clearRole]);
-
-  useEffect(() => {
-    if (!authenticated || section !== "Students") return;
-
-    let live = true;
-
-    const timer = window.setTimeout(() => {
-      setStudentListLoading(true);
-      setStudentListError("");
-
-      const params = new URLSearchParams({
-        page: String(studentFilters.page),
-        limit: String(studentFilters.limit),
-        q: studentFilters.q,
-        className: studentFilters.className,
-        batchId: studentFilters.batchId,
-        status: studentFilters.status,
-      });
-
-      void api(`/students?${params.toString()}`)
-        .then((result) => {
-          if (!live) return;
-
-          setDirectory(result.students as Student[]);
-          setStudentSummary(result.summary as StudentSummary);
-          setStudentPagination(result.pagination as StudentPagination);
-          setStudentClasses(result.classes as string[]);
-        })
-        .catch((error: Error) => {
-          if (live) setStudentListError(error.message);
-        })
-        .finally(() => {
-          if (live) setStudentListLoading(false);
-        });
-    }, studentFilters.q ? 250 : 0);
-
-    return () => {
-      live = false;
-      window.clearTimeout(timer);
-    };
-  }, [authenticated, section, studentFilters]);
 
   useEffect(() => {
     if (!authenticated || !batchId || !date) return;
@@ -873,38 +414,6 @@ export default function Home() {
     }
   };
 
-  const saveAttendance = async () => {
-    if (!selectedBatch?.active || !students.length || attendanceSaving) return;
-
-    setAttendanceSaving(true);
-    setPageError("");
-
-    try {
-      await api("/attendance", {
-        method: "POST",
-        body: JSON.stringify({
-          batchId,
-          date,
-          records: students.map((student) => ({
-            studentId: student._id,
-            status: student.status,
-          })),
-        }),
-      });
-
-      setSaved(true);
-      setNotice("Attendance saved successfully.");
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Could not save attendance.",
-      );
-    } finally {
-      setAttendanceSaving(false);
-    }
-  };
-
   const openStudentCreation = () => router.push("/admin/students/new");
 
   const openStudentEditor = (student: Student) => {
@@ -1009,140 +518,6 @@ const handleLogout = async () => {
     );
   }
 };
-
-
-    const saveProfile = async () => {
-    setPageError("");
-    setNotice("");
-
-    try {
-      const result = await api("/auth/admin/profile", {
-        method: "PATCH",
-        body: JSON.stringify(profileDraft),
-      });
-
-      const profileResult = result.profile
-        ? result
-        : await api("/auth/admin/profile");
-
-      setAdminProfile(profileResult.profile as AdminProfile);
-
-      setProfileDraft({
-        name: profileResult.profile.name,
-        phone: profileResult.profile.phone,
-        email: profileResult.profile.email,
-        image: profileResult.profile.image,
-      });
-
-      setNotice(
-        result.message ??
-          (profileResult.profile.pendingEmail
-            ? "Verification code sent to the new email address."
-            : "Profile updated."),
-      );
-    } catch (error) {
-      setPageError(
-        error instanceof Error ? error.message : "Could not update profile.",
-      );
-    }
-  };
-
-  const verifyProfileEmail = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setPageError("");
-
-    try {
-      const result = await api("/auth/admin/profile/email/verify", {
-        method: "POST",
-        body: JSON.stringify({ otp: emailOtp }),
-      });
-
-      setAdminProfile(result.profile as AdminProfile);
-
-      setProfileDraft({
-        name: result.profile.name,
-        phone: result.profile.phone,
-        email: result.profile.email,
-        image: result.profile.image,
-      });
-
-      setEmailOtp("");
-      setNotice("Email address verified.");
-    } catch (error) {
-      setPageError(
-        error instanceof Error ? error.message : "Could not verify email.",
-      );
-    }
-  };
-
-  const resendProfileEmailOtp = async () => {
-    setPageError("");
-
-    try {
-      const result = await api("/auth/admin/profile/email/resend", {
-        method: "POST",
-      });
-
-      setNotice(result.message);
-    } catch (error) {
-      setPageError(
-        error instanceof Error ? error.message : "Could not send a new code.",
-      );
-    }
-  };
-
-  const chooseProfileImage = async (file?: File) => {
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setPageError("Choose an image file.");
-      return;
-    }
-
-    try {
-      const imageUrl = URL.createObjectURL(file);
-      const image = new Image();
-
-      image.onload = () => {
-        URL.revokeObjectURL(imageUrl);
-
-        const canvas = document.createElement("canvas");
-
-        const scale = Math.min(
-          1,
-          320 / Math.max(image.width, image.height),
-        );
-
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
-
-        canvas
-          .getContext("2d")
-          ?.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-        const data = canvas.toDataURL("image/jpeg", 0.76);
-
-        if (data.length > 600_000) {
-          setPageError(
-            "This image is too large after compression. Choose a smaller image.",
-          );
-          return;
-        }
-
-        setProfileDraft((current) => ({ ...current, image: data }));
-        setPageError("");
-      };
-
-      image.onerror = () => {
-        URL.revokeObjectURL(imageUrl);
-        setPageError("Could not read that image.");
-      };
-
-      image.src = imageUrl;
-    } catch {
-      setPageError("Could not process that image.");
-    }
-  };
 
   return (
     <main
@@ -1308,10 +683,7 @@ const handleLogout = async () => {
                 saved={saved}
                 setBatchId={setBatchId}
                 setDate={setDate}
-                setStudents={(update) => {
-                  setStudents(update);
-                  setSaved(false);
-                }}
+               setStudents={setStudents}
                 saveAttendance={() => void saveAttendance()}
               />
             ) : section === "Classes & Batches" ? (

@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FormEvent } from "react";
@@ -37,15 +38,18 @@ export default function BatchEditorModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-3 sm:items-center sm:p-5"
       onClick={onClose}
     >
       <section
-        className="relative my-auto max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-900"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="batch-modal-title"
+        className="relative my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl dark:bg-gray-900 sm:max-h-[90vh] sm:p-6"
         onClick={(event) => event.stopPropagation()}
       >
         <button
-          className="absolute right-4 top-4 text-2xl text-gray-500"
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-2xl text-gray-500 transition hover:bg-gray-100 dark:hover:bg-gray-800 sm:right-4 sm:top-4"
           type="button"
           aria-label="Close"
           onClick={onClose}
@@ -53,21 +57,25 @@ export default function BatchEditorModal({
           ×
         </button>
 
-        <div className="mb-2 text-xs font-semibold tracking-wider text-blue-600">
+        <div className="mb-2 pr-10 text-xs font-semibold tracking-wider text-blue-600">
           CLASSES &amp; BATCHES
         </div>
 
-        <h2 className="text-xl font-bold">
+        <h2
+          id="batch-modal-title"
+          className="text-xl font-bold text-gray-900 dark:text-white sm:text-2xl"
+        >
           {editingBatch ? "Edit batch" : "Create a batch"}
         </h2>
 
-        <p className="mb-5 mt-1 text-sm text-gray-500">
+        <p className="mb-5 mt-1 text-sm text-gray-500 dark:text-gray-400">
           Choose a unique name, schedule and student assignments.
         </p>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
-          <label className="flex flex-col gap-2 text-sm font-medium">
+          <label className="flex flex-col gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
             Batch name
+
             <input
               required
               maxLength={60}
@@ -79,7 +87,7 @@ export default function BatchEditorModal({
                 })
               }
               placeholder="For example, Batch-C"
-              className="rounded-lg border border-gray-300 bg-transparent px-3 py-2 outline-none focus:border-blue-500 dark:border-gray-700"
+              className="w-full min-w-0 rounded-xl border border-gray-300 bg-white px-3 py-3 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
             />
           </label>
 
@@ -101,27 +109,31 @@ export default function BatchEditorModal({
             />
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <strong className="text-sm">Assign students</strong>
-              <small className="block text-xs text-gray-500">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <strong className="text-sm text-gray-900 dark:text-white">
+                Assign students
+              </strong>
+
+              <small className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
                 Each student can be in one active batch.
               </small>
             </div>
 
-            <span className="text-sm font-semibold text-blue-600">
+            <span className="shrink-0 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
               {batchForm.studentIds.length} selected
             </span>
           </div>
 
           <input
-            className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm outline-none dark:border-gray-700"
+            type="search"
+            className="w-full min-w-0 rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
             value={batchSearch}
             onChange={(event) => setBatchSearch(event.target.value)}
             placeholder="Search name, phone or father's name"
           />
 
-          <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700">
             {filteredStudents.map((student) => {
               const otherBatch = batches.find(
                 (batch) =>
@@ -134,13 +146,14 @@ export default function BatchEditorModal({
 
               return (
                 <label
-                  className={`flex items-center gap-3 border-b border-gray-100 p-3 last:border-0 dark:border-gray-800 ${
+                  className={`flex min-w-0 items-start gap-3 border-b border-gray-100 p-3 last:border-0 dark:border-gray-800 ${
                     otherBatch ? "opacity-60" : ""
                   }`}
                   key={student._id}
                 >
                   <input
                     type="checkbox"
+                    className="mt-1 h-4 w-4 shrink-0 accent-blue-600"
                     checked={checked}
                     disabled={
                       Boolean(otherBatch) ||
@@ -161,15 +174,18 @@ export default function BatchEditorModal({
                   />
 
                   <span className="min-w-0 flex-1">
-                    <strong className="block text-sm">{student.name}</strong>
-                    <small className="block text-xs text-gray-500">
+                    <strong className="block break-words text-sm text-gray-900 dark:text-white">
+                      {student.name}
+                    </strong>
+
+                    <small className="mt-1 block break-words text-xs leading-5 text-gray-500 dark:text-gray-400">
                       {student.phone} · Father: {student.fatherName}
                       {!student.active ? " · Inactive student" : ""}
                     </small>
                   </span>
 
                   {otherBatch && (
-                    <em className="text-xs text-red-600">
+                    <em className="max-w-24 shrink-0 break-words text-right text-xs not-italic text-red-600 dark:text-red-400">
                       {otherBatch.name}
                     </em>
                   )}
@@ -177,17 +193,19 @@ export default function BatchEditorModal({
               );
             })}
 
-            {batchStudentOptions.length === 0 && (
-              <div className="p-6 text-center text-sm text-gray-500">
-                Add students in Student Management first.
+            {filteredStudents.length === 0 && (
+              <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                {batchStudentOptions.length === 0
+                  ? "Add students in Student Management first."
+                  : "No students found matching your search."}
               </div>
             )}
           </div>
 
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-4 dark:border-gray-800 sm:flex-row sm:justify-end">
             <button
               type="button"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
+              className="w-full rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800 sm:w-auto"
               onClick={onClose}
             >
               Cancel
@@ -195,7 +213,7 @@ export default function BatchEditorModal({
 
             <button
               type="submit"
-              className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white"
+              className="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 active:scale-[0.98] sm:w-auto"
             >
               {editingBatch ? "Save changes" : "Create batch"} →
             </button>

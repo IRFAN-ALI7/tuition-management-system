@@ -72,7 +72,8 @@ export default function StudentsList({
       : batches.find((batch) => batch._id === student.batchId);
 
   return (
-    <section className="flex flex-col gap-5">
+    <section className="flex min-w-0 flex-col gap-5">
+      {/* Header */}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-bold">Students</h1>
@@ -82,13 +83,14 @@ export default function StudentsList({
         </div>
 
         <button
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white"
+          className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 sm:w-auto"
           onClick={onAdd}
         >
           <span>＋</span> Add Student
         </button>
       </div>
 
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           label="Total Students"
@@ -111,12 +113,13 @@ export default function StudentsList({
         />
       </div>
 
-      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 lg:flex-row">
-        <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 dark:border-gray-700">
+      {/* Search and Filters */}
+      <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900 lg:flex-row">
+        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 dark:border-gray-700">
           <span aria-hidden="true">⌕</span>
 
           <input
-            className="w-full bg-transparent py-2 text-sm outline-none"
+            className="w-full min-w-0 bg-transparent py-2 text-sm outline-none"
             aria-label="Search students"
             placeholder="Search by name, phone, student ID..."
             value={filters.q}
@@ -125,7 +128,7 @@ export default function StudentsList({
         </label>
 
         <select
-          className="rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm dark:border-gray-700"
+          className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 lg:w-auto"
           aria-label="Filter by class"
           value={filters.className}
           onChange={(event) =>
@@ -142,7 +145,7 @@ export default function StudentsList({
         </select>
 
         <select
-          className="rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm dark:border-gray-700"
+          className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 lg:w-auto"
           aria-label="Filter by batch"
           value={filters.batchId}
           onChange={(event) =>
@@ -159,7 +162,7 @@ export default function StudentsList({
         </select>
 
         <select
-          className="rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm dark:border-gray-700"
+          className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 lg:w-auto"
           aria-label="Filter by status"
           value={filters.status}
           onChange={(event) =>
@@ -172,14 +175,15 @@ export default function StudentsList({
         </select>
 
         <button
-          className="rounded-lg border border-gray-200 px-4 py-2 text-sm dark:border-gray-700"
+          className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 lg:w-auto"
           onClick={onReset}
         >
           Reset
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      {/* Students Table */}
+      <div className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         {error && (
           <div
             className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
@@ -231,8 +235,8 @@ export default function StudentsList({
                       <td className="p-3">{id}</td>
 
                       <td className="p-3">
-                        <span className="flex items-center gap-2">
-                          <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                             {student.profilePhoto ? (
                               <NextImage
                                 src={student.profilePhoto}
@@ -246,7 +250,9 @@ export default function StudentsList({
                             )}
                           </span>
 
-                          <strong>{student.name}</strong>
+                          <strong className="min-w-0 break-words">
+                            {student.name}
+                          </strong>
                         </span>
                       </td>
 
@@ -259,24 +265,25 @@ export default function StudentsList({
                       <td className="p-3">
                         {batch ? batch.name : "Unassigned"}
                       </td>
+
                       <td className="p-3">
-                          <span
-                         className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                       student.active
-                         ? "bg-emerald-100 text-emerald-700"
-                      : "bg-rose-100 text-rose-700"
-                        }`}
-                       >
-                       {student.active ? "Active" : "Inactive"}
-                          </span>
-                       </td>
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                            student.active
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-rose-100 text-rose-700"
+                          }`}
+                        >
+                          {student.active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
 
                       <td className="p-3">
                         <button
                           title="View profile"
                           aria-label={`View ${student.name}`}
                           onClick={() => onView(student)}
-                          className="font-medium text-blue-600 hover:text-blue-800"
+                          className="whitespace-nowrap font-medium text-blue-600 transition hover:text-blue-800"
                         >
                           View Profile
                         </button>
@@ -306,7 +313,8 @@ export default function StudentsList({
           </table>
         </div>
 
-        <footer className="flex flex-col justify-between gap-4 border-t border-gray-100 p-4 dark:border-gray-800 md:flex-row md:items-center">
+        {/* Pagination */}
+        <footer className="flex flex-col justify-between gap-4 border-t border-gray-100 p-3 sm:p-4 dark:border-gray-800 md:flex-row md:items-center">
           <span className="text-sm text-gray-500">
             Showing {startRow}–{endRow} of{" "}
             {pagination.total.toLocaleString("en-IN")} students
@@ -333,14 +341,17 @@ export default function StudentsList({
               disabled={filters.page <= 1 || loading}
               onClick={() => onFilter("page", filters.page - 1)}
               aria-label="Previous page"
-              className="rounded border px-2 py-1 disabled:opacity-40"
+              className="rounded border border-gray-200 px-2 py-1 disabled:opacity-40 dark:border-gray-700"
             >
               ‹
             </button>
 
             {startPage > 1 && (
               <>
-                <button onClick={() => onFilter("page", 1)}>
+                <button
+                  className="rounded border border-gray-200 px-2 py-1 dark:border-gray-700"
+                  onClick={() => onFilter("page", 1)}
+                >
                   1
                 </button>
 
@@ -370,6 +381,7 @@ export default function StudentsList({
                 <span>…</span>
 
                 <button
+                  className="rounded border border-gray-200 px-2 py-1 dark:border-gray-700"
                   onClick={() => onFilter("page", totalPages)}
                 >
                   {totalPages}
@@ -381,7 +393,7 @@ export default function StudentsList({
               disabled={filters.page >= totalPages || loading}
               onClick={() => onFilter("page", filters.page + 1)}
               aria-label="Next page"
-              className="rounded border px-2 py-1 disabled:opacity-40"
+              className="rounded border border-gray-200 px-2 py-1 disabled:opacity-40 dark:border-gray-700"
             >
               ›
             </button>
@@ -400,12 +412,12 @@ function SummaryCard({
   value: string;
 }) {
   return (
-    <article className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950">
+    <article className="flex min-w-0 items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:gap-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950">
         ●
       </div>
 
-      <div>
+      <div className="min-w-0">
         <small className="text-gray-500">{label}</small>
         <strong className="block text-xl">{value}</strong>
       </div>
