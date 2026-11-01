@@ -3,3 +3,4 @@ dist/
 .env
 src/.env
 coverage/
+scripts
