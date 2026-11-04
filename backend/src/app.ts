@@ -29,7 +29,21 @@ app.use(
   }),
 );
 
-app.use(express.json({ limit: "1mb" }));
+// Keep the normal API request limit at 1 MB.
+// Allow a larger JSON body only for student profile photo updates.
+const standardJsonParser = express.json({ limit: "1mb" });
+const profileImageJsonParser = express.json({ limit: "15mb" });
+
+app.use((request, response, next) => {
+  if (
+    request.method === "PATCH" &&
+    request.path === "/api/student/profile"
+  ) {
+    return profileImageJsonParser(request, response, next);
+  }
+
+  return standardJsonParser(request, response, next);
+});
 
 app.use(
   "/api/auth",

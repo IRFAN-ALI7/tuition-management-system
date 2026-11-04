@@ -1,5 +1,7 @@
 
 import type { Response, NextFunction } from "express";
+import { isValidObjectId } from "mongoose";
+
 import type { AuthRequest } from "../../middleware/authenticate";
 import { getStudentByUserId } from "../../services/student/studentData.service";
 
@@ -49,7 +51,9 @@ export async function getStudentFees(
     const student = await getStudentByUserId(request.auth!.userId);
 
     if (!student) {
-      response.status(404).json({ error: "Student record not found." });
+      response.status(404).json({
+        error: "Student record not found.",
+      });
       return;
     }
 
@@ -64,7 +68,9 @@ export async function getStudentFees(
         : currentYear;
 
     if (!Number.isInteger(year) || year < 2000 || year > 9999) {
-      response.status(400).json({ error: "Choose a valid year." });
+      response.status(400).json({
+        error: "Choose a valid year.",
+      });
       return;
     }
 
@@ -72,6 +78,7 @@ export async function getStudentFees(
       1,
       Number(request.query.paymentPage) || 1
     );
+
     const paymentLimit = Math.min(
       100,
       Math.max(1, Number(request.query.paymentLimit) || 20)
@@ -81,21 +88,30 @@ export async function getStudentFees(
 
     const [yearLedgers, allLedgers, payments, paymentCount, batch] =
       await Promise.all([
-        FeeLedger.find({ studentId: student._id, year })
+        FeeLedger.find({
+          studentId: student._id,
+          year,
+        })
           .sort({ month: 1 })
           .lean(),
 
-        FeeLedger.find({ studentId: student._id })
+        FeeLedger.find({
+          studentId: student._id,
+        })
           .sort({ year: 1, month: 1 })
           .lean(),
 
-        FeePayment.find({ studentId: student._id })
+        FeePayment.find({
+          studentId: student._id,
+        })
           .sort({ paymentDate: -1, createdAt: -1 })
           .skip((paymentPage - 1) * paymentLimit)
           .limit(paymentLimit)
           .lean(),
 
-        FeePayment.countDocuments({ studentId: student._id }),
+        FeePayment.countDocuments({
+          studentId: student._id,
+        }),
 
         student.batchId
           ? student.populate("batchId", "name startTime endTime")
@@ -138,7 +154,9 @@ export async function getStudentFees(
         month,
         feeAmount,
         paidAmount,
-        remainingAmount: roundMoney(Math.max(0, feeAmount - paidAmount)),
+        remainingAmount: roundMoney(
+          Math.max(0, feeAmount - paidAmount)
+        ),
         status,
       };
     });
@@ -154,6 +172,11 @@ export async function getStudentFees(
           Math.max(0, ledger.feeAmount - ledger.paidAmount)
         ),
       }));
+
+    const totalFee = allLedgers.reduce(
+      (sum, ledger) => sum + ledger.feeAmount,
+      0
+    );
 
     const totalPaid = allLedgers.reduce(
       (sum, ledger) => sum + ledger.paidAmount,
@@ -174,13 +197,17 @@ export async function getStudentFees(
         monthlyFees: student.monthlyFees,
         batch: (batch as any).batchId ?? null,
       },
+
       year,
       months,
       unpaidMonths,
+
       totals: {
+        feeAmount: roundMoney(totalFee),
         paidAmount: roundMoney(totalPaid),
         dueAmount: roundMoney(totalDue),
       },
+
       payments: payments.map((payment) => ({
         _id: payment._id,
         receiptNumber: payment.receiptNumber,
@@ -191,11 +218,134 @@ export async function getStudentFees(
         allocations: payment.allocations,
         createdAt: payment.createdAt,
       })),
+
       paymentPagination: {
         page: paymentPage,
         limit: paymentLimit,
         total: paymentCount,
-        totalPages: Math.max(1, Math.ceil(paymentCount / paymentLimit)),
+        totalPages: Math.max(
+          1,
+          Math.ceil(paymentCount / paymentLimit)
+        ),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// GET /api/student/fees/payments/:paymentId
+// Student can access only their own payment receipt.
+export async function getStudentPaymentReceipt(
+  request: AuthRequest,
+  response: Response,
+  next: NextFunction
+) {
+  try {
+    const student = await getStudentByUserId(request.auth!.userId);
+
+    if (!student) {
+      response.status(404).json({
+        error: "Student record not found.",
+      });
+      return;
+    }
+
+    const paymentId = String(request.params.paymentId ?? "").trim();
+
+    if (!paymentId) {
+      response.status(400).json({
+        error: "Payment ID or receipt number is required.",
+      });
+      return;
+    }
+
+    // Ownership is checked directly in the payment query.
+    const paymentQuery = isValidObjectId(paymentId)
+      ? {
+          _id: paymentId,
+          studentId: student._id,
+        }
+      : {
+          receiptNumber: paymentId,
+          studentId: student._id,
+        };
+
+    const payment = (await FeePayment.findOne(paymentQuery).lean()) as any;
+
+    if (!payment) {
+      response.status(404).json({
+        error: "Payment receipt not found.",
+      });
+      return;
+    }
+
+    const ledgerTotals = await FeeLedger.aggregate([
+      {
+        $match: {
+          studentId: student._id,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalDue: {
+            $sum: "$feeAmount",
+          },
+          totalPaid: {
+            $sum: "$paidAmount",
+          },
+          remainingDue: {
+            $sum: {
+              $max: [
+                0,
+                {
+                  $subtract: ["$feeAmount", "$paidAmount"],
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const totals = ledgerTotals[0] ?? {
+      totalDue: 0,
+      totalPaid: 0,
+      remainingDue: 0,
+    };
+
+    response.json({
+      payment: {
+        _id: payment._id,
+        receiptNumber: payment.receiptNumber,
+
+        studentId: String(student._id),
+
+        student: {
+          _id: student._id,
+          studentId: student.studentId,
+          name: student.name,
+          phone: student.phone,
+          fatherName: student.fatherName,
+          className: student.className,
+          admissionDate: student.admissionDate,
+          monthlyFees: student.monthlyFees,
+        },
+
+        amount: payment.amount,
+        paymentDate: payment.paymentDate,
+        actualPaymentDate: payment.createdAt,
+        method: payment.method,
+        referenceNumber: payment.referenceNumber,
+        allocations: payment.allocations,
+        createdAt: payment.createdAt,
+
+        receiptDetails: {
+          totalDue: roundMoney(totals.totalDue),
+          totalPaid: roundMoney(totals.totalPaid),
+          remainingDue: roundMoney(totals.remainingDue),
+        },
       },
     });
   } catch (error) {

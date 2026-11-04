@@ -83,10 +83,10 @@ export async function getStudentDashboard(
     ]);
 
     const present =
-      attendanceSummary.find((item) => item._id === "present")?.count ?? 0;
+      attendanceSummary.find((item: any) => item._id === "present")?.count ?? 0;
 
     const absent =
-      attendanceSummary.find((item) => item._id === "absent")?.count ?? 0;
+      attendanceSummary.find((item: any) => item._id === "absent")?.count ?? 0;
 
     const totalAttendance = present + absent;
 
@@ -94,11 +94,21 @@ export async function getStudentDashboard(
       ? Number(((present / totalAttendance) * 100).toFixed(2))
       : null;
 
+    // Current month fee status
+    const feeAmount = currentFee?.feeAmount ?? 0;
+    const paidAmount = currentFee?.paidAmount ?? 0;
+
+    const remainingAmount = currentFee
+      ? Math.max(0, feeAmount - paidAmount)
+      : 0;
+
     const feeStatus = !currentFee
-      ? "Not due"
-      : currentFee.paidAmount >= currentFee.feeAmount
-        ? "Paid"
-        : "Due";
+      ? "Not recorded"
+      : feeAmount <= 0
+        ? "Not set"
+        : remainingAmount <= 0
+          ? "Paid"
+          : "Due";
 
     response.json({
       student: {
@@ -131,13 +141,12 @@ export async function getStudentDashboard(
       },
 
       currentFee: {
+        hasRecord: Boolean(currentFee),
         year,
         month,
-        feeAmount: currentFee?.feeAmount ?? 0,
-        paidAmount: currentFee?.paidAmount ?? 0,
-        remainingAmount: currentFee
-          ? Math.max(0, currentFee.feeAmount - currentFee.paidAmount)
-          : 0,
+        feeAmount,
+        paidAmount,
+        remainingAmount,
         status: feeStatus,
       },
 
@@ -163,7 +172,7 @@ export async function getStudentDashboard(
           : null,
       })),
 
-      notices: notices.map((notice) => ({
+      notices: notices.map((notice: any) => ({
         _id: notice._id,
         title: notice.title,
         message: notice.message,
