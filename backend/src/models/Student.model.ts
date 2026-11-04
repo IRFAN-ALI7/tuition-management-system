@@ -16,6 +16,7 @@ export interface StudentDocument {
   admissionDate: string;
   monthlyFees: number | null;
   profilePhoto: string;
+  profilePhotoPublicId: string;
   active: boolean;
   createdAt?: Date;
   updatedAt?: Date;
@@ -86,6 +87,10 @@ const studentSchema = new Schema<StudentDocument>(
       min: 0,
     },
     profilePhoto: {
+      type: String,
+      default: "",
+    },
+    profilePhotoPublicId: {
       type: String,
       default: "",
     },

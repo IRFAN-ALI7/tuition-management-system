@@ -99,18 +99,35 @@ export async function login(
   }
 }
 
-// LOGOUT
-export function logout(
-  _request: Request,
-  response: Response
+// ADMIN AND STUDENT LOGOUT
+export async function logout(
+  request: AuthRequest,
+  response: Response,
+  next: NextFunction
 ) {
-  response.clearCookie("session", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  });
+  try {
+    if (!request.auth?.userId) {
+      response.status(401).json({
+        error: "Please sign in to continue.",
+      });
+      return;
+    }
 
-  response.status(204).end();
+    await User.findOneAndUpdate(
+      { _id: request.auth.userId },
+      { $inc: { sessionVersion: 1 } }
+    );
+
+    response.clearCookie("session", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
+    response.status(204).end();
+  } catch (error) {
+    next(error);
+  }
 }
 
 // GET AUTH SESSION

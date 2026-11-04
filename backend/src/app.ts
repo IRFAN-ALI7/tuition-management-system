@@ -7,6 +7,7 @@ import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth.routes";
 import batchRoutes from "./routes/batch.routes";
 import studentRoutes from "./routes/student.routes";
+import studentPortalRoutes from "./routes/student-portal.routes";
 import attendanceRoutes from "./routes/attendance.routes";
 import feeRoutes from "./routes/fee.routes";
 import examRoutes from "./routes/exam.routes";
@@ -50,7 +51,6 @@ app.get("/api/health", (_request, response) => {
 app.use("/api/auth", authRoutes);
 
 // AUTH SESSION
-// Prevent browsers and intermediate caches from storing session responses.
 app.get(
   "/api/auth/session",
   (_request, response, next) => {
@@ -66,12 +66,16 @@ app.get(
   getSession,
 );
 
+// ADMIN ROUTES
 app.use("/api/batches", requireAuth, requireAdmin, batchRoutes);
 app.use("/api/students", requireAuth, requireAdmin, studentRoutes);
 app.use("/api/attendance", requireAuth, requireAdmin, attendanceRoutes);
 app.use("/api/fees", requireAuth, requireAdmin, feeRoutes);
 app.use("/api/exams", requireAuth, requireAdmin, examRoutes);
 app.use("/api/notices", requireAuth, requireAdmin, noticeRoutes);
+
+// STUDENT PORTAL ROUTES
+app.use("/api/student", studentPortalRoutes);
 
 app.use(
   (

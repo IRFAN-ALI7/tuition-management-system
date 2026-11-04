@@ -93,6 +93,6 @@ router.post(
 router.post("/login", login);
 
 // LOGOUT
-router.post("/logout", logout);
+router.post("/logout", requireAuth, logout);
 
 export default router;
