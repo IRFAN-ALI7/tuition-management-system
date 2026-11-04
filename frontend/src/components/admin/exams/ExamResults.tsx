@@ -4,7 +4,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ExamDetail, ExamResultRow } from "./examTypes";
 
-type ExamResultsProps = {
+type Props = {
   detail: ExamDetail | null;
   sortedResults: ExamResultRow[];
   sortBy: string;
@@ -46,23 +46,24 @@ export function ExamResults({
   primaryButtonClass,
   date,
   statusClass,
-}: ExamResultsProps) {
+}: Props) {
   if (!detail) return null;
 
   return (
     <div
-      className={modalBackdropClass}
+      className={`${modalBackdropClass} z-[70]`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) setDetail(null);
       }}
     >
       <section
-        className={`${modalClass} max-w-5xl`}
+        className={`${modalClass} max-h-[calc(100dvh-32px)] max-w-5xl`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="exam-results-title"
       >
         <button
+          type="button"
           className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-500 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           onClick={() => setDetail(null)}
           aria-label="Close"
@@ -74,7 +75,7 @@ export function ExamResults({
 
         <h2
           id="exam-results-title"
-          className="mt-2 pr-8 text-2xl font-bold text-slate-900 dark:text-white"
+          className="mt-2 pr-10 text-xl font-bold text-slate-900 dark:text-white sm:text-2xl"
         >
           {detail.exam.name || detail.exam.subject}
         </h2>
@@ -84,7 +85,7 @@ export function ExamResults({
           {detail.exam.subject} · {detail.exam.totalMarks} marks
         </p>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             {
               label: "Average",
@@ -93,27 +94,21 @@ export function ExamResults({
                   ? "—"
                   : detail.summary.averagePercentage + "%",
             },
-            {
-              label: "Highest",
-              value: detail.summary.highestMarks ?? "—",
-            },
-            {
-              label: "Lowest",
-              value: detail.summary.lowestMarks ?? "—",
-            },
+            { label: "Highest", value: detail.summary.highestMarks ?? "—" },
+            { label: "Lowest", value: detail.summary.lowestMarks ?? "—" },
             {
               label: "Entered / Pending",
-              value: detail.summary.entered + " / " + detail.summary.pending,
+              value: `${detail.summary.entered} / ${detail.summary.pending}`,
             },
           ].map((item) => (
             <div
               key={item.label}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60"
+              className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4 dark:border-slate-700 dark:bg-slate-800/60"
             >
               <span className="block text-xs font-medium text-slate-500 dark:text-slate-400">
                 {item.label}
               </span>
-              <strong className="mt-2 block text-xl font-bold text-slate-900 dark:text-white">
+              <strong className="mt-2 block text-lg font-bold text-slate-900 dark:text-white sm:text-xl">
                 {item.value}
               </strong>
             </div>
@@ -138,7 +133,7 @@ export function ExamResults({
               <tr>
                 {["Student ID", "Student", "Marks", "Percentage", "Status"].map(
                   (heading) => (
-                    <th className="px-4 py-3.5" key={heading}>
+                    <th className="whitespace-nowrap px-4 py-3.5" key={heading}>
                       {heading}
                     </th>
                   )
@@ -155,21 +150,17 @@ export function ExamResults({
                   <td className={cellClass}>
                     {row.student.studentId || "—"}
                   </td>
-
                   <td className={`${cellClass} font-medium`}>
                     {row.student.name}
                   </td>
-
                   <td className={cellClass}>
                     {row.obtainedMarks === null
                       ? "—"
-                      : row.obtainedMarks + " / " + detail.exam.totalMarks}
+                      : `${row.obtainedMarks} / ${detail.exam.totalMarks}`}
                   </td>
-
                   <td className={cellClass}>
-                    {row.percentage === null ? "—" : row.percentage + "%"}
+                    {row.percentage === null ? "—" : `${row.percentage}%`}
                   </td>
-
                   <td className={cellClass}>
                     <span className={statusClass(row.obtainedMarks === null)}>
                       {row.saveStatus}
@@ -181,12 +172,17 @@ export function ExamResults({
           </table>
         </div>
 
-        <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
-          <button className={buttonClass} onClick={() => setDetail(null)}>
+        <div className="mt-6 flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 dark:border-slate-800 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => setDetail(null)}
+          >
             Close
           </button>
 
           <button
+            type="button"
             className={primaryButtonClass}
             onClick={() => {
               setMarkDraft(

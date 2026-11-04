@@ -1,5 +1,7 @@
+
 import { useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { useRouter } from "next/navigation";
 
 import { api, API } from "@/lib/api";
 
@@ -64,6 +66,8 @@ export default function useAdminWorkspace({
   activateRole,
   clearRole,
 }: Props) {
+  const router = useRouter();
+
   const loadWorkspace = async (selectedDate = todayISO()) => {
     setLoading(true);
     setPageError("");
@@ -111,6 +115,8 @@ export default function useAdminWorkspace({
   };
 
   useEffect(() => {
+    let active = true;
+
     const initialDate = todayISO();
 
     const dateTimer = window.setTimeout(() => {
@@ -136,48 +142,53 @@ export default function useAdminWorkspace({
       );
     }, 0);
 
-        let active = true;
+    const redirectToLogin = () => {
+      if (!active) return;
 
-    void fetch(`${API}/auth/session`, {
-      credentials: "include",
-    })
-      .then(async (response) => (response.ok ? response.json() : null))
-      .then((session) => {
+      setAuthenticated(false);
+      clearRole();
+      setAuthChecking(false);
+      router.replace("/admin/login");
+    };
+
+    const checkSession = async () => {
+      try {
+        const response = await fetch(`${API}/auth/session`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        });
+
         if (!active) return;
 
-        if (!session) {
-          setAuthenticated(false);
-          clearRole();
-          setAuthChecking(false);
+        if (!response.ok) {
+          redirectToLogin();
           return;
         }
 
-        if (session.user?.role !== "admin") {
-          setAuthenticated(false);
-          clearRole();
-          setPageError(
-            "An admin account is required to open this workspace.",
-          );
-          setAuthChecking(false);
+        const session = await response.json();
+
+        if (!active) return;
+
+        if (session?.user?.role !== "admin") {
+          redirectToLogin();
           return;
         }
 
         activateRole("admin");
-
-        // Session verified: show admin dashboard immediately.
         setAuthenticated(true);
         setAuthChecking(false);
 
-        // Load dashboard data in the background.
         void loadWorkspace(initialDate);
-      })
-      .catch(() => {
-        if (!active) return;
+      } catch {
+        redirectToLogin();
+      }
+    };
 
-        setAuthenticated(false);
-        clearRole();
-        setAuthChecking(false);
-      });
+    void checkSession();
 
     return () => {
       active = false;
@@ -185,7 +196,7 @@ export default function useAdminWorkspace({
     };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activateRole, clearRole]);
+  }, [activateRole, clearRole, router]);
 
   return {
     loadWorkspace,

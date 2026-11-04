@@ -72,7 +72,7 @@ export default function StudentsList({
       : batches.find((batch) => batch._id === student.batchId);
 
   return (
-    <section className="flex min-w-0 flex-col gap-5">
+    <section className="flex min-w-0 flex-col gap-4 sm:gap-5">
       {/* Header */}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
@@ -91,7 +91,7 @@ export default function StudentsList({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         <SummaryCard
           label="Total Students"
           value={summary.total.toLocaleString("en-IN")}
@@ -114,8 +114,9 @@ export default function StudentsList({
       </div>
 
       {/* Search and Filters */}
-      <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900 lg:flex-row">
-        <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-200 px-3 dark:border-gray-700">
+      <div className="grid min-w-0 grid-cols-1 gap-2 rounded-xl border border-gray-200 bg-white p-2 sm:gap-3 sm:p-4 dark:border-gray-800 dark:bg-gray-900">
+        {/* Search */}
+        <label className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-200 px-3 dark:border-gray-700">
           <span aria-hidden="true">⌕</span>
 
           <input
@@ -127,55 +128,59 @@ export default function StudentsList({
           />
         </label>
 
-        <select
-          className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 lg:w-auto"
-          aria-label="Filter by class"
-          value={filters.className}
-          onChange={(event) =>
-            onFilter("className", event.target.value)
-          }
-        >
-          <option value="all">All Classes</option>
+        {/* All three filters in one row */}
+        <div className="grid min-w-0 grid-cols-3 gap-2">
+          <select
+            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2 text-xs sm:px-3 sm:text-sm dark:border-gray-700 dark:bg-gray-900"
+            aria-label="Filter by class"
+            value={filters.className}
+            onChange={(event) =>
+              onFilter("className", event.target.value)
+            }
+          >
+            <option value="all">All Classes</option>
 
-          {classes.map((className) => (
-            <option key={className} value={className}>
-              {className}
-            </option>
-          ))}
-        </select>
+            {classes.map((className) => (
+              <option key={className} value={className}>
+                {className}
+              </option>
+            ))}
+          </select>
 
-        <select
-          className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 lg:w-auto"
-          aria-label="Filter by batch"
-          value={filters.batchId}
-          onChange={(event) =>
-            onFilter("batchId", event.target.value)
-          }
-        >
-          <option value="all">All Batches</option>
+          <select
+            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2 text-xs sm:px-3 sm:text-sm dark:border-gray-700 dark:bg-gray-900"
+            aria-label="Filter by batch"
+            value={filters.batchId}
+            onChange={(event) =>
+              onFilter("batchId", event.target.value)
+            }
+          >
+            <option value="all">All Batches</option>
 
-          {batches.map((batch) => (
-            <option key={batch._id} value={batch._id}>
-              {batch.name}
-            </option>
-          ))}
-        </select>
+            {batches.map((batch) => (
+              <option key={batch._id} value={batch._id}>
+                {batch.name}
+              </option>
+            ))}
+          </select>
 
-        <select
-          className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 lg:w-auto"
-          aria-label="Filter by status"
-          value={filters.status}
-          onChange={(event) =>
-            onFilter("status", event.target.value)
-          }
-        >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
+          <select
+            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2 text-xs sm:px-3 sm:text-sm dark:border-gray-700 dark:bg-gray-900"
+            aria-label="Filter by status"
+            value={filters.status}
+            onChange={(event) =>
+              onFilter("status", event.target.value)
+            }
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
 
+        {/* Reset stays in its own fixed row */}
         <button
-          className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800 lg:w-auto"
+          className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm transition hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
           onClick={onReset}
         >
           Reset
@@ -412,13 +417,13 @@ function SummaryCard({
   value: string;
 }) {
   return (
-    <article className="flex min-w-0 items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:gap-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950">
+    <article className="flex min-w-0 items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 sm:gap-4 sm:p-5 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 sm:h-10 sm:w-10 dark:bg-blue-950">
         ●
       </div>
 
       <div className="min-w-0">
-        <small className="text-gray-500">{label}</small>
+        <small className="text-xs text-gray-500">{label}</small>
         <strong className="block text-xl">{value}</strong>
       </div>
     </article>

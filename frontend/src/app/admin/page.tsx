@@ -550,42 +550,26 @@ const handleLogout = async () => {
           />
 
           <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
-            <div
-              className={`mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center ${
-                section === "Dashboard" ||
-                section === "Fees" ||
-                section === "Notices"
-                  ? "hidden"
-                  : ""
-              }`}
-            >
-              <div>
-                <div className="text-xs font-semibold tracking-wider text-blue-600">
-                  UDAAN LEARNING CENTRE · ADMIN WORKSPACE
-                </div>
+            {!["Dashboard", "Fees", "Notices", "Students", "Classes & Batches", "Tests & Results"].includes(section) && (
+  <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+       <div className="mb-6 flex w-full items-center justify-center">
+  <h1 className="text-center text-xl font-bold text-gray-900 dark:text-white">
+    Take attendance
+  </h1>
+</div>
 
-                <h1 className="mt-2 text-2xl font-bold">
-                  {section === "Attendance" ? "Take attendance" : section}
-                </h1>
-
-                <p className="mt-1 text-sm text-gray-500">
-                  {section === "Attendance"
-                    ? "A little progress each day adds up to big results."
-                    : `Welcome back. Manage your ${section.toLowerCase()} here.`}
-                </p>
-              </div>
-
-              {section === "Attendance" && (
-                <button
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
-                  onClick={() =>
-                    document.getElementById("attendance-date")?.focus()
-                  }
-                >
-                  ▦ Today ⌄
-                </button>
-              )}
-            </div>
+    {section === "Attendance" && (
+      <button
+        className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
+        onClick={() =>
+          document.getElementById("attendance-date")?.focus()
+        }
+      >
+        ▦ Today ⌄
+      </button>
+    )}
+  </div>
+)}
 
             {pageError && (
               <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">

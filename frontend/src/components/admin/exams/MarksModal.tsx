@@ -4,7 +4,7 @@
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import type { ExamDetail } from "./examTypes";
 
-type MarksModalProps = {
+type Props = {
   marksOpen: boolean;
   detail: ExamDetail | null;
   markDraft: Record<string, string>;
@@ -44,23 +44,24 @@ export function MarksModal({
   primaryButtonClass,
   date,
   statusClass,
-}: MarksModalProps) {
+}: Props) {
   if (!marksOpen || !detail) return null;
 
   return (
     <div
-      className={modalBackdropClass}
+      className={`${modalBackdropClass} z-[90] items-start sm:items-center`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) setMarksOpen(false);
       }}
     >
       <section
-        className={`${modalClass} max-w-6xl`}
+        className={`${modalClass} my-3 max-h-[calc(100dvh-24px)] max-w-6xl sm:my-auto`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="exam-marks-title"
       >
         <button
+          type="button"
           className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xl text-slate-500 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           onClick={() => setMarksOpen(false)}
           aria-label="Close"
@@ -72,7 +73,7 @@ export function MarksModal({
 
         <h2
           id="exam-marks-title"
-          className="mt-2 pr-8 text-2xl font-bold text-slate-900 dark:text-white"
+          className="mt-2 pr-10 text-xl font-bold text-slate-900 dark:text-white sm:text-2xl"
         >
           {detail.exam.name || detail.exam.subject}
         </h2>
@@ -83,7 +84,7 @@ export function MarksModal({
         </p>
 
         <form onSubmit={(event) => void saveMarks(event)}>
-          <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+          <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
             <table className={tableClass}>
               <thead className={tableHeaderClass}>
                 <tr>
@@ -95,7 +96,7 @@ export function MarksModal({
                     "Percentage",
                     "Save Status",
                   ].map((heading) => (
-                    <th className="px-4 py-3.5" key={heading}>
+                    <th className="whitespace-nowrap px-4 py-3.5" key={heading}>
                       {heading}
                     </th>
                   ))}
@@ -110,6 +111,11 @@ export function MarksModal({
                       ? null
                       : Number(raw);
 
+                  const valid =
+                    value !== null &&
+                    value >= 0 &&
+                    value <= detail.exam.totalMarks;
+
                   return (
                     <tr
                       key={row.student._id}
@@ -118,17 +124,14 @@ export function MarksModal({
                       <td className={cellClass}>
                         {row.student.studentId || "—"}
                       </td>
-
                       <td className={`${cellClass} font-medium`}>
                         {row.student.name}
                       </td>
-
                       <td className={cellClass}>{detail.exam.totalMarks}</td>
-
                       <td className={cellClass}>
                         <input
-                          className="w-28 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-indigo-900"
-                          aria-label={"Obtained marks for " + row.student.name}
+                          className="h-10 w-28 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:ring-indigo-900"
+                          aria-label={`Obtained marks for ${row.student.name}`}
                           type="number"
                           min="0"
                           max={detail.exam.totalMarks}
@@ -142,21 +145,14 @@ export function MarksModal({
                           }
                         />
                       </td>
-
                       <td className={cellClass}>
-                        {value === null ||
-                        value < 0 ||
-                        value > detail.exam.totalMarks
+                        {!valid
                           ? "—"
-                          : (
-                              (value / detail.exam.totalMarks) *
-                              100
-                            ).toFixed(2) + "%"}
+                          : `${((value / detail.exam.totalMarks) * 100).toFixed(2)}%`}
                       </td>
-
                       <td className={cellClass}>
-                        <span className={statusClass(value === null)}>
-                          {value === null ? "Not Entered" : "Ready to save"}
+                        <span className={statusClass(!valid)}>
+                          {valid ? "Ready to save" : "Not Entered"}
                         </span>
                       </td>
                     </tr>
@@ -187,7 +183,7 @@ export function MarksModal({
             </div>
           )}
 
-          <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
+          <div className="mt-6 flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 dark:border-slate-800 sm:flex-row sm:justify-end">
             <button
               type="button"
               className={buttonClass}
@@ -195,7 +191,6 @@ export function MarksModal({
             >
               Close
             </button>
-
             <button
               type="submit"
               className={primaryButtonClass}

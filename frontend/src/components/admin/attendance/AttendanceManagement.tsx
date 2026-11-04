@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { Student, Batch } from "../shared/types";
 
 type Props = {
@@ -28,6 +29,156 @@ const prettyTime = (time: string) => {
     h >= 12 ? "PM" : "AM"
   }`;
 };
+
+function BatchDropdown({
+  batches,
+  batchId,
+  setBatchId,
+}: {
+  batches: Batch[];
+  batchId: string;
+  setBatchId: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const selectedBatch = batches.find((batch) => batch._id === batchId);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: PointerEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
+  const selectBatch = (value: string) => {
+    setBatchId(value);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={dropdownRef} className="relative min-w-0 w-full">
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className={`flex min-h-[42px] w-full min-w-0 items-center justify-between gap-2 rounded-lg border bg-white px-3 py-2 text-left text-sm font-normal outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:bg-gray-900 dark:focus:ring-blue-950 ${
+          open
+            ? "border-blue-500 ring-2 ring-blue-100 dark:ring-blue-950"
+            : "border-gray-300 dark:border-gray-700"
+        }`}
+      >
+        <span
+          className={`min-w-0 flex-1 truncate ${
+            selectedBatch
+              ? "text-gray-800 dark:text-gray-200"
+              : "text-gray-500 dark:text-gray-400"
+          }`}
+        >
+          {selectedBatch
+            ? `${selectedBatch.name} · ${prettyTime(
+                selectedBatch.startTime
+              )}–${prettyTime(selectedBatch.endTime)}`
+            : "Select a batch"}
+        </span>
+
+        <svg
+          className={`size-4 shrink-0 text-gray-500 transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+          viewBox="0 0 20 20"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="m5 7.5 5 5 5-5"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
+          aria-label="Select attendance batch"
+          className="absolute left-0 top-full z-50 mt-2 max-h-56 w-full min-w-0 overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl dark:border-gray-700 dark:bg-gray-900"
+        >
+          <button
+            type="button"
+            role="option"
+            aria-selected={!batchId}
+            onClick={() => selectBatch("")}
+            className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-xs transition ${
+              !batchId
+                ? "bg-blue-50 font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+                : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+            }`}
+          >
+            <span className="truncate">Select a batch</span>
+            {!batchId && <span className="shrink-0">✓</span>}
+          </button>
+
+          {batches.map((batch) => {
+            const isSelected = batchId === batch._id;
+
+            return (
+              <button
+                key={batch._id}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => selectBatch(batch._id)}
+                className={`flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left transition ${
+                  isSelected
+                    ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+                    : "text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
+                }`}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-semibold">
+                    {batch.name}
+                  </span>
+
+                  <span className="mt-0.5 block truncate text-[10px] text-gray-500 dark:text-gray-400">
+                    {prettyTime(batch.startTime)} –{" "}
+                    {prettyTime(batch.endTime)}
+                    {!batch.active && " · Inactive"}
+                  </span>
+                </span>
+
+                {isSelected && (
+                  <span className="shrink-0 text-sm font-bold">✓</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AttendanceManagement({
   students,
@@ -98,29 +249,19 @@ export default function AttendanceManagement({
               type="date"
               value={date}
               onChange={(event) => setDate(event.target.value)}
-              className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-700 dark:bg-gray-900 dark:focus:ring-blue-950"
+              className="min-h-[42px] w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-700 dark:bg-gray-900 dark:focus:ring-blue-950"
             />
           </label>
 
-          <label className="flex min-w-0 flex-col gap-2 text-sm font-medium">
-            Batch
+          <div className="flex min-w-0 flex-col gap-2 text-sm font-medium">
+            <span>Batch</span>
 
-            <select
-              value={batchId}
-              onChange={(event) => setBatchId(event.target.value)}
-              className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-700 dark:bg-gray-900 dark:focus:ring-blue-950"
-            >
-              <option value="">Select a batch</option>
-
-              {batches.map((batch) => (
-                <option key={batch._id} value={batch._id}>
-                  {batch.name} – {prettyTime(batch.startTime)}–
-                  {prettyTime(batch.endTime)}
-                  {batch.active ? "" : " (Inactive – history)"}
-                </option>
-              ))}
-            </select>
-          </label>
+            <BatchDropdown
+              batches={batches}
+              batchId={batchId}
+              setBatchId={setBatchId}
+            />
+          </div>
 
           <div className="flex min-w-0 flex-col justify-center rounded-lg bg-gray-50 p-3 dark:bg-gray-800 md:col-span-2 xl:col-span-1">
             {selectedBatch ? (

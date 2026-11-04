@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -51,10 +52,10 @@ export default function FeeTable({
   const pageCount = Math.max(1, pagination.totalPages);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
       {error && (
         <div
-          className="m-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+          className="m-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 sm:m-4"
           role="alert"
         >
           {error}
@@ -63,7 +64,7 @@ export default function FeeTable({
 
       {notice && (
         <div
-          className="m-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"
+          className="m-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 sm:m-4"
           role="status"
         >
           <span>{notice}</span>
@@ -89,9 +90,9 @@ export default function FeeTable({
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div className="w-full overflow-x-auto">
         <table className="w-full min-w-[950px] border-collapse text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">
             <tr>
               {[
                 "Student ID",
@@ -105,7 +106,7 @@ export default function FeeTable({
               ].map((heading) => (
                 <th
                   key={heading}
-                  className="whitespace-nowrap border-b border-slate-200 px-4 py-3 font-semibold"
+                  className="whitespace-nowrap border-b border-slate-200 px-4 py-3 font-semibold dark:border-slate-700"
                 >
                   {heading}
                 </th>
@@ -113,7 +114,7 @@ export default function FeeTable({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {loading ? (
               <tr>
                 <td
@@ -125,33 +126,38 @@ export default function FeeTable({
               </tr>
             ) : (
               rows.map((row) => (
-                <tr key={row._id} className="transition hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-600">
+                <tr
+                  key={row._id}
+                  className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                >
+                  <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-600 dark:text-slate-300">
                     {row.student.studentId ??
                       `STU${row.student._id.slice(-6).toUpperCase()}`}
                   </td>
 
-                  <td className="px-4 py-3 font-semibold text-slate-900">
+                  <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">
                     {row.student.name}
                   </td>
 
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {row.batch?.name ?? (
                       <span className="text-slate-400">Unassigned</span>
                     )}
                   </td>
 
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300">
                     {money(row.feeAmount)}
                   </td>
 
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-700 dark:text-slate-300">
                     {money(row.paidAmount)}
                   </td>
 
                   <td
                     className={`whitespace-nowrap px-4 py-3 font-semibold ${
-                      row.totalDueAmount ? "text-rose-600" : "text-slate-700"
+                      row.totalDueAmount
+                        ? "text-rose-600"
+                        : "text-slate-700 dark:text-slate-300"
                     }`}
                   >
                     {money(row.totalDueAmount)}
@@ -172,7 +178,7 @@ export default function FeeTable({
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <button
-                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                         onClick={() => onView(row.student._id)}
                       >
                         View
@@ -206,18 +212,18 @@ export default function FeeTable({
         </table>
       </div>
 
-      <footer className="flex flex-col gap-4 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-sm text-slate-500">
+      <footer className="flex flex-col gap-3 border-t border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-4 dark:border-slate-800">
+        <span className="text-xs text-slate-500 sm:text-sm">
           Showing {pagination.total ? (page - 1) * limit + 1 : 0}–
           {Math.min(page * limit, pagination.total)} of{" "}
           {pagination.total.toLocaleString("en-IN")} students
         </span>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-2 text-sm text-slate-600">
+        <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
+          <label className="flex items-center gap-2 text-xs text-slate-600 sm:text-sm dark:text-slate-300">
             Rows per page
             <select
-              className="rounded-md border border-slate-300 bg-white px-2 py-1.5"
+              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900"
               value={limit}
               onChange={(e) => onLimitChange(Number(e.target.value))}
             >
@@ -227,41 +233,43 @@ export default function FeeTable({
             </select>
           </label>
 
-          <button
-            className={outlineButtonClass}
-            disabled={page <= 1 || loading}
-            aria-label="Previous page"
-            onClick={() => onPageChange(page - 1)}
-          >
-            ‹
-          </button>
-
-          {Array.from(
-            { length: Math.max(0, pageEnd - pageStart + 1) },
-            (_, index) => pageStart + index,
-          ).map((item) => (
+          <div className="flex items-center gap-1.5">
             <button
-              key={item}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                page === item
-                  ? "bg-blue-600 text-white"
-                  : "border border-slate-300 text-slate-700 hover:bg-slate-100"
-              }`}
-              aria-current={page === item ? "page" : undefined}
-              onClick={() => onPageChange(item)}
+              className={outlineButtonClass}
+              disabled={page <= 1 || loading}
+              aria-label="Previous page"
+              onClick={() => onPageChange(page - 1)}
             >
-              {item}
+              ‹
             </button>
-          ))}
 
-          <button
-            className={outlineButtonClass}
-            disabled={page >= pageCount || loading}
-            aria-label="Next page"
-            onClick={() => onPageChange(page + 1)}
-          >
-            ›
-          </button>
+            {Array.from(
+              { length: Math.max(0, pageEnd - pageStart + 1) },
+              (_, index) => pageStart + index,
+            ).map((item) => (
+              <button
+                key={item}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                  page === item
+                    ? "bg-blue-600 text-white"
+                    : "border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                }`}
+                aria-current={page === item ? "page" : undefined}
+                onClick={() => onPageChange(item)}
+              >
+                {item}
+              </button>
+            ))}
+
+            <button
+              className={outlineButtonClass}
+              disabled={page >= pageCount || loading}
+              aria-label="Next page"
+              onClick={() => onPageChange(page + 1)}
+            >
+              ›
+            </button>
+          </div>
         </div>
       </footer>
     </div>

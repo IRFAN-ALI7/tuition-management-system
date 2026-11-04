@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -59,12 +60,18 @@ export default function PaymentModal({
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [paymentDate, setPaymentDate] = useState(today());
   const [method, setMethod] = useState("Cash");
+  const [methodOpen, setMethodOpen] = useState(false);
+  const [studentOpen, setStudentOpen] = useState(false);
   const [reference, setReference] = useState("");
   const [loadingStudent, setLoadingStudent] = useState(
     Boolean(initialStudentId),
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const selectedStudent = students.find(
+    (student) => student._id === studentId,
+  );
 
   useEffect(() => {
     let live = true;
@@ -156,6 +163,7 @@ export default function PaymentModal({
 
     const next = { ...allocations, [key]: value };
     setAllocations(next);
+
     setAmount(
       Object.values(next)
         .reduce((sum, item) => sum + item, 0)
@@ -171,7 +179,9 @@ export default function PaymentModal({
     if (key in allocations) {
       const next = { ...allocations };
       delete next[key];
+
       setAllocations(next);
+
       setAmount(
         Object.values(next)
           .reduce((sum, value) => sum + value, 0)
@@ -281,7 +291,10 @@ export default function PaymentModal({
           </div>
         )}
 
-        <form className="mt-6 space-y-5" onSubmit={(event) => void submit(event)}>
+        <form
+          className="mt-6 space-y-5"
+          onSubmit={(event) => void submit(event)}
+        >
           <label className="block space-y-1.5 text-sm font-medium text-slate-700">
             Search student
             <input
@@ -292,31 +305,97 @@ export default function PaymentModal({
             />
           </label>
 
-          <label className="block space-y-1.5 text-sm font-medium text-slate-700">
-            Select Student
-            <select
-              className={inputClass}
-              required
-              value={studentId}
-              onChange={(e) => {
-                setStudentId(e.target.value);
-                setDetails(null);
-                setAllocations({});
-                setAmount("");
-                setIdempotencyKey("");
-                setLoadingStudent(Boolean(e.target.value));
-                setError("");
-              }}
+          {/* Responsive Student Dropdown */}
+          <div className="relative min-w-0 space-y-1.5 text-sm font-medium text-slate-700">
+            <label htmlFor="payment-student-trigger" className="block">
+              Select Student
+            </label>
+
+            <button
+              id="payment-student-trigger"
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded={studentOpen}
+              onClick={() => setStudentOpen((open) => !open)}
+              className={`${inputClass} flex w-full min-w-0 items-center justify-between gap-2 text-left`}
             >
-              <option value="">Choose a student</option>
-              {students.map((student) => (
-                <option key={student._id} value={student._id}>
-                  {student.name} · {student.studentId ?? student._id.slice(-6)}
-                  {student.active ? "" : " · Inactive"}
-                </option>
-              ))}
-            </select>
-          </label>
+              <span className="min-w-0 truncate">
+                {selectedStudent
+                  ? `${selectedStudent.name} · ${selectedStudent.studentId ?? selectedStudent._id.slice(-6)}${selectedStudent.active ? "" : " · Inactive"}`
+                  : "Choose a student"}
+              </span>
+
+              <span className="shrink-0 text-xs text-slate-500">
+                {studentOpen ? "▲" : "▼"}
+              </span>
+            </button>
+
+            {studentOpen && (
+              <div
+                role="listbox"
+                aria-label="Select student"
+                className="absolute left-0 right-0 top-full z-[70] mt-1 max-h-52 w-full min-w-0 overflow-x-hidden overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
+              >
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={!studentId}
+                  onClick={() => {
+                    setStudentId("");
+                    setDetails(null);
+                    setAllocations({});
+                    setAmount("");
+                    setIdempotencyKey("");
+                    setLoadingStudent(false);
+                    setError("");
+                    setStudentOpen(false);
+                  }}
+                  className={`block w-full rounded-lg px-3 py-2.5 text-left text-sm ${
+                    !studentId
+                      ? "bg-blue-50 font-semibold text-blue-700"
+                      : "text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  Choose a student
+                </button>
+
+                {students.length ? (
+                  students.map((student) => (
+                    <button
+                      key={student._id}
+                      type="button"
+                      role="option"
+                      aria-selected={studentId === student._id}
+                      onClick={() => {
+                        setStudentId(student._id);
+                        setDetails(null);
+                        setAllocations({});
+                        setAmount("");
+                        setIdempotencyKey("");
+                        setLoadingStudent(true);
+                        setError("");
+                        setStudentOpen(false);
+                      }}
+                      className={`block w-full rounded-lg px-3 py-2.5 text-left text-sm ${
+                        studentId === student._id
+                          ? "bg-blue-50 font-semibold text-blue-700"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="block truncate">
+                        {student.name} · {student.studentId ?? student._id.slice(-6)}
+                        {student.active ? "" : " · Inactive"}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <p className="px-3 py-3 text-center text-xs text-slate-500">
+                    No students found. Try another search.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           {loadingStudent ? (
             <div className="rounded-lg bg-slate-50 p-5 text-center text-sm text-slate-500">
@@ -327,7 +406,9 @@ export default function PaymentModal({
               <>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <small className="text-sm text-slate-500">Monthly fee</small>
+                    <small className="text-sm text-slate-500">
+                      Monthly fee
+                    </small>
                     <strong className="mt-1 block text-xl font-bold text-slate-900">
                       {money(details.student.monthlyFees ?? 0)}
                     </strong>
@@ -380,6 +461,7 @@ export default function PaymentModal({
                                     <strong className="block text-sm text-slate-900">
                                       {MONTHS[item.month - 1]} {item.year}
                                     </strong>
+
                                     <small className="mt-1 block text-xs leading-5 text-slate-500">
                                       Fee {money(item.feeAmount)} · Paid{" "}
                                       {money(item.paidAmount)} · Due {money(max)}
@@ -397,7 +479,10 @@ export default function PaymentModal({
                                     step="0.01"
                                     value={allocations[key]}
                                     onChange={(e) =>
-                                      updateAllocation(key, Number(e.target.value))
+                                      updateAllocation(
+                                        key,
+                                        Number(e.target.value),
+                                      )
                                     }
                                   />
                                 )}
@@ -447,21 +532,53 @@ export default function PaymentModal({
               />
             </label>
 
-            <label className="block space-y-1.5 text-sm font-medium text-slate-700">
-              Payment Method
-              <select
-                className={inputClass}
-                value={method}
-                onChange={(e) => {
-                  setIdempotencyKey("");
-                  setMethod(e.target.value);
-                }}
+            {/* Custom Payment Method Dropdown */}
+            <div className="relative min-w-0 space-y-1.5 text-sm font-medium text-slate-700">
+              <label className="block">Payment Method</label>
+
+              <button
+                type="button"
+                aria-expanded={methodOpen}
+                aria-haspopup="listbox"
+                onClick={() => setMethodOpen((prev) => !prev)}
+                className={`${inputClass} flex min-w-0 items-center justify-between gap-2 text-left`}
               >
-                <option>Cash</option>
-                <option>UPI</option>
-                <option>Bank Transfer</option>
-              </select>
-            </label>
+                <span className="truncate">{method}</span>
+
+                <span className="shrink-0 text-xs text-slate-500">
+                  {methodOpen ? "▲" : "▼"}
+                </span>
+              </button>
+
+              {methodOpen && (
+                <div
+                  role="listbox"
+                  aria-label="Payment method"
+                  className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-40 w-full min-w-0 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl"
+                >
+                  {["Cash", "UPI", "Bank Transfer"].map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      role="option"
+                      aria-selected={method === item}
+                      onClick={() => {
+                        setIdempotencyKey("");
+                        setMethod(item);
+                        setMethodOpen(false);
+                      }}
+                      className={`block w-full rounded-md px-3 py-2.5 text-left text-sm transition ${
+                        method === item
+                          ? "bg-blue-50 font-semibold text-blue-700"
+                          : "text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <label className="block space-y-1.5 text-sm font-medium text-slate-700">
               Transaction / Reference (optional)
@@ -489,6 +606,7 @@ export default function PaymentModal({
             <span className="text-sm font-medium">
               Allocated total: <strong>{money(allocTotal)}</strong>
             </span>
+
             <span className="text-sm">
               Amount received: <strong>{money(Number(amount || 0))}</strong>
             </span>
@@ -506,7 +624,9 @@ export default function PaymentModal({
             <button
               className={primaryButtonClass}
               type="submit"
-              disabled={saving || loadingStudent || !details?.unpaidMonths.length}
+              disabled={
+                saving || loadingStudent || !details?.unpaidMonths.length
+              }
             >
               {saving ? "Saving payment..." : "Save Payment"}
             </button>

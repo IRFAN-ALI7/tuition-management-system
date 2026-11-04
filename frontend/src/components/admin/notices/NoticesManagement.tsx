@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,7 +7,6 @@ import type { FormEvent } from "react";
 type RecipientType = "ALL_STUDENTS" | "BATCH_WISE" | "SINGLE_STUDENT";
 
 type NoticeBatch = { _id: string; name: string };
-
 type NoticeStudent = { _id: string; name: string; phone: string };
 
 type Notice = {
@@ -43,9 +43,7 @@ async function noticeApi(path: string, init?: RequestInit) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(
-      data.error ?? "Could not complete the notice request.",
-    );
+    throw new Error(data.error ?? "Could not complete the notice request.");
   }
 
   return data;
@@ -60,19 +58,22 @@ function publishDate(value: string) {
 }
 
 const inputClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  "w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-blue-950";
 
 const primaryButtonClass =
-  "inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50";
 
 const outlineButtonClass =
-  "inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800";
+
+const labelClass =
+  "mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200";
 
 const dialogBackdropClass =
-  "fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/60 p-4 sm:p-6";
+  "fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-950/60 p-3 backdrop-blur-sm sm:items-center sm:p-6";
 
 const dialogClass =
-  "relative my-auto max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-7";
+  "relative my-auto w-full max-w-[640px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900";
 
 export function NoticesManagement({
   batches,
@@ -102,6 +103,20 @@ export function NoticesManagement({
   const [error, setError] = useState("");
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
   const [noticeToDelete, setNoticeToDelete] = useState<Notice | null>(null);
+  const [recipientOpen, setRecipientOpen] = useState(false);
+
+  const resetForm = () => {
+    setTitle("");
+    setMessage("");
+    setRecipientType("ALL_STUDENTS");
+    setBatchId("");
+    setStudentSearch("");
+    setSelectedStudent(null);
+    setStudentOptions([]);
+    setSearchingStudents(false);
+    setStudentSearchError("");
+    setError("");
+  };
 
   useEffect(() => {
     let live = true;
@@ -140,7 +155,7 @@ export function NoticesManagement({
       setStudentSearchError("");
 
       void noticeApi(
-        `/students?q=${encodeURIComponent(query)}&status=all&page=1&limit=20`,
+        `/students?q=${encodeURIComponent(query)}&status=all&page=1&limit=20`
       )
         .then((data) => {
           if (live) setStudentOptions(data.students as StudentOption[]);
@@ -151,7 +166,7 @@ export function NoticesManagement({
         .finally(() => {
           if (live) setSearchingStudents(false);
         });
-    }, 250);
+    }, 300);
 
     return () => {
       live = false;
@@ -198,21 +213,13 @@ export function NoticesManagement({
       });
 
       setNotices((current) => [data.notice as Notice, ...current]);
-      setTitle("");
-      setMessage("");
-      setRecipientType("ALL_STUDENTS");
-      setBatchId("");
-      setStudentSearch("");
-      setSelectedStudent(null);
-      setStudentOptions([]);
-      setSearchingStudents(false);
-      setStudentSearchError("");
+      resetForm();
       setCreateOpen(false);
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
-          : "Could not create this notice.",
+          : "Could not create this notice."
       );
     } finally {
       setSaving(false);
@@ -228,11 +235,11 @@ export function NoticesManagement({
     try {
       await noticeApi(
         `/notices/${encodeURIComponent(noticeToDelete._id)}`,
-        { method: "DELETE" },
+        { method: "DELETE" }
       );
 
       setNotices((current) =>
-        current.filter((item) => item._id !== noticeToDelete._id),
+        current.filter((item) => item._id !== noticeToDelete._id)
       );
 
       if (selectedNotice?._id === noticeToDelete._id) {
@@ -244,7 +251,7 @@ export function NoticesManagement({
       setError(
         caught instanceof Error
           ? caught.message
-          : "Could not delete this notice.",
+          : "Could not delete this notice."
       );
       setNoticeToDelete(null);
     } finally {
@@ -257,12 +264,10 @@ export function NoticesManagement({
 
     if (!query) return true;
 
-    const recipient = recipientLabels[item.recipientType];
-
     return [
       item.title,
       item.message,
-      recipient,
+      recipientLabels[item.recipientType],
       item.batchId?.name,
       item.studentId?.name,
       item.studentId?.phone,
@@ -270,83 +275,100 @@ export function NoticesManagement({
   });
 
   return (
-    <section className="space-y-6">
+    <section className="min-w-0 space-y-6">
       {error && !createOpen && (
         <div
-          className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"
+          className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
           role="alert"
         >
-          {error}
+          <span className="font-bold">!</span>
+          <p className="min-w-0 flex-1">{error}</p>
+          <button
+            type="button"
+            onClick={() => setError("")}
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
         </div>
       )}
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <header className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      {/* NOTICE LIST */}
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <header className="flex flex-col gap-4 border-b border-slate-200 p-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
-            <div className="text-xs font-bold tracking-[0.18em] text-blue-600">
+            <p className="text-xs font-bold tracking-[0.18em] text-blue-600 dark:text-blue-400">
               NOTICE MANAGEMENT
-            </div>
-            <h2 className="mt-2 text-2xl font-bold text-slate-900">
+            </p>
+            <h2 className="mt-2 text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
               Notices
             </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Create and manage announcements for your students.
+            </p>
           </div>
 
           <button
             type="button"
-            className={primaryButtonClass}
+            className={`${primaryButtonClass} w-full sm:w-auto`}
             onClick={() => {
-              setError("");
+              resetForm();
               setCreateOpen(true);
             }}
           >
+            <span className="mr-2 text-lg leading-none">+</span>
             Create Notice
           </button>
         </header>
 
-        <div className="p-5 sm:p-6">
-          <label className="block max-w-xl space-y-2">
-            <span className="text-sm font-medium text-slate-700">
+        <div className="p-4 sm:p-6">
+          <div className="max-w-xl">
+            <label htmlFor="notice-search" className={labelClass}>
               Search notices
-            </span>
+            </label>
             <input
+              id="notice-search"
+              name="noticeSearch"
               className={inputClass}
               type="search"
               value={noticeSearch}
               onChange={(event) => setNoticeSearch(event.target.value)}
-              placeholder="Search title, message or recipient"
+              placeholder="Search title, message or recipient..."
             />
-          </label>
+          </div>
 
           {loading ? (
-            <p className="py-12 text-center text-sm text-slate-500">
-              Loading notices…
-            </p>
+            <div className="flex min-h-40 items-center justify-center text-sm text-slate-500">
+              Loading notices...
+            </div>
           ) : filteredNotices.length ? (
-            <div className="mt-5 divide-y divide-slate-200">
+            <div className="mt-6 divide-y divide-slate-100 dark:divide-slate-800">
               {filteredNotices.map((item) => (
                 <article
-                  className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between"
+                  className="flex min-w-0 flex-col gap-4 py-5 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between"
                   key={item._id}
                 >
                   <div className="min-w-0 flex-1">
-                    <strong className="block break-words text-base font-semibold text-slate-900">
+                    <h3 className="break-words text-base font-semibold text-slate-900 dark:text-white">
                       {item.title}
-                    </strong>
+                    </h3>
 
-                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-600">
+                    <p className="mt-2 line-clamp-3 whitespace-pre-wrap break-words text-sm leading-6 text-slate-600 dark:text-slate-400">
                       {item.message}
                     </p>
 
-                    <span className="mt-3 inline-flex flex-wrap items-center gap-1 text-xs font-medium text-slate-500">
-                      <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full bg-blue-50 px-3 py-1.5 font-semibold text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
                         {recipientLabels[item.recipientType]}
                       </span>
-                      <span>·</span>
-                      <span>{publishDate(item.createdAt)}</span>
-                    </span>
+                      <span className="text-slate-400">·</span>
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {publishDate(item.createdAt)}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2">
                     <button
                       type="button"
                       className={outlineButtonClass}
@@ -357,7 +379,7 @@ export function NoticesManagement({
 
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-white px-4 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex min-h-11 items-center justify-center rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 dark:border-rose-900 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30"
                       onClick={() => setNoticeToDelete(item)}
                     >
                       Delete
@@ -367,15 +389,24 @@ export function NoticesManagement({
               ))}
             </div>
           ) : (
-            <p className="py-12 text-center text-sm text-slate-500">
-              {notices.length
-                ? "No notices match your search."
-                : "No notices have been created."}
-            </p>
+            <div className="flex min-h-56 flex-col items-center justify-center py-10 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl text-slate-400 dark:bg-slate-800">
+                ▤
+              </span>
+              <h3 className="mt-4 font-semibold text-slate-800 dark:text-white">
+                {notices.length ? "No matching notices" : "No notices yet"}
+              </h3>
+              <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
+                {notices.length
+                  ? "Try another search term."
+                  : "Create your first notice to communicate with students."}
+              </p>
+            </div>
           )}
         </div>
       </section>
 
+      {/* CREATE NOTICE MODAL */}
       {createOpen && (
         <div
           className={dialogBackdropClass}
@@ -391,120 +422,237 @@ export function NoticesManagement({
             aria-modal="true"
             aria-labelledby="create-notice-title"
           >
-            <button
-              type="button"
-              className="absolute right-4 top-3 rounded-lg px-2 py-1 text-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-              aria-label="Close create notice form"
-              disabled={saving}
-              onClick={() => setCreateOpen(false)}
-            >
-              ×
-            </button>
-
-            <div className="pr-8">
-              <div className="text-xs font-bold tracking-[0.18em] text-blue-600">
-                NOTICE MANAGEMENT
+            {/* Modal Header */}
+            <header className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-5 py-5 dark:border-slate-800 dark:bg-slate-900 sm:px-7">
+              <div className="min-w-0">
+                <p className="text-xs font-bold tracking-[0.18em] text-blue-600 dark:text-blue-400">
+                  NOTICE MANAGEMENT
+                </p>
+                <h2
+                  id="create-notice-title"
+                  className="mt-2 text-xl font-bold text-slate-900 dark:text-white sm:text-2xl"
+                >
+                  Create Notice
+                </h2>
+                <p className="mt-1 text-sm leading-5 text-slate-500 dark:text-slate-400">
+                  Compose a notice and choose who should receive it.
+                </p>
               </div>
-              <h2
-                id="create-notice-title"
-                className="mt-2 text-2xl font-bold text-slate-900"
-              >
-                Create Notice
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Compose a notice and choose who should receive it.
-              </p>
-            </div>
 
+              <button
+                type="button"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50 dark:hover:bg-slate-800 dark:hover:text-white"
+                aria-label="Close create notice form"
+                disabled={saving}
+                onClick={() => setCreateOpen(false)}
+              >
+                ×
+              </button>
+            </header>
+
+            {/* Modal Form */}
             <form
-              className="mt-6 space-y-5"
+              className="space-y-5 px-5 py-5 sm:px-7 sm:py-6"
               onSubmit={(event) => void createNotice(event)}
             >
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">
-                  Recipient Type
-                </span>
-                <select
-                  className={inputClass}
-                  required
-                  value={recipientType}
-                  onChange={(event) => {
-                    setRecipientType(event.target.value as RecipientType);
-                    setBatchId("");
-                    setStudentSearch("");
-                    setSelectedStudent(null);
-                    setStudentOptions([]);
-                    setSearchingStudents(false);
-                    setStudentSearchError("");
-                  }}
-                >
-                  <option value="ALL_STUDENTS">ALL_STUDENTS</option>
-                  <option value="BATCH_WISE">BATCH_WISE</option>
-                  <option value="SINGLE_STUDENT">SINGLE_STUDENT</option>
-                </select>
-              </label>
+             
+{/* Recipient Type - Custom Dropdown */}
+<div>
+  <label className={labelClass}>
+    Recipient Type
+  </label>
 
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">
-                  Title
-                </span>
-                <input
-                  className={inputClass}
-                  required
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-              </label>
+  <div className="relative">
+    <button
+      type="button"
+      id="recipient-type"
+      aria-haspopup="listbox"
+      aria-expanded={recipientOpen}
+      onClick={() => setRecipientOpen((prev) => !prev)}
+      className={`${inputClass} flex items-center justify-between gap-3 text-left ${
+        recipientOpen
+          ? "border-blue-500 ring-4 ring-blue-100 dark:ring-blue-950"
+          : ""
+      }`}
+    >
+      <span className="truncate">
+        {recipientLabels[recipientType]}
+      </span>
 
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium text-slate-700">
-                  Message
-                </span>
-                <textarea
-                  className={`${inputClass} min-h-32 resize-y`}
-                  required
-                  rows={5}
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
-                />
-              </label>
+      <svg
+        className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${
+          recipientOpen ? "rotate-180" : ""
+        }`}
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      >
+        <path
+          d="m5 7.5 5 5 5-5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
 
-              {recipientType === "BATCH_WISE" && (
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium text-slate-700">
-                    Batch Selection
+    {recipientOpen && (
+      <>
+        <button
+          type="button"
+          aria-label="Close recipient options"
+          className="fixed inset-0 z-20 cursor-default"
+          onClick={() => setRecipientOpen(false)}
+        />
+
+        <div
+          role="listbox"
+          aria-label="Recipient Type"
+          className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-900/10 dark:border-slate-700 dark:bg-slate-900"
+        >
+          {(
+            [
+              {
+                value: "ALL_STUDENTS",
+                label: "All Students",
+                description: "Send to every student",
+                icon: "👥",
+              },
+              {
+                value: "BATCH_WISE",
+                label: "Batch Wise",
+                description: "Send to a selected batch",
+                icon: "📚",
+              },
+              {
+                value: "SINGLE_STUDENT",
+                label: "Single Student",
+                description: "Send to one selected student",
+                icon: "👤",
+              },
+            ] as const
+          ).map((option) => {
+            const active = recipientType === option.value;
+
+            return (
+              <button
+                type="button"
+                role="option"
+                aria-selected={active}
+                key={option.value}
+                onClick={() => {
+                  setRecipientType(option.value);
+                  setBatchId("");
+                  setStudentSearch("");
+                  setSelectedStudent(null);
+                  setStudentOptions([]);
+                  setStudentSearchError("");
+                  setRecipientOpen(false);
+                }}
+                className={`flex w-full min-w-0 items-center gap-3 rounded-lg px-3 py-3 text-left transition ${
+                  active
+                    ? "bg-blue-50 dark:bg-blue-950/40"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800"
+                }`}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-lg dark:bg-slate-800">
+                  {option.icon}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={`block truncate text-sm font-semibold ${
+                      active
+                        ? "text-blue-700 dark:text-blue-300"
+                        : "text-slate-800 dark:text-slate-100"
+                    }`}
+                  >
+                    {option.label}
                   </span>
+
+                  <span className="mt-0.5 block truncate text-xs text-slate-500 dark:text-slate-400">
+                    {option.description}
+                  </span>
+                </span>
+
+                {active && (
+                  <svg
+                    className="h-5 w-5 shrink-0 text-blue-600"
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      d="m4 10 4 4 8-8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </>
+    )}
+  </div>
+
+  <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+    {recipientType === "ALL_STUDENTS" &&
+      "This notice will be sent to all students."}
+    {recipientType === "BATCH_WISE" &&
+      "Choose a batch to send this notice to its students."}
+    {recipientType === "SINGLE_STUDENT" &&
+      "Search for one student and select their account."}
+  </p>
+</div>
+
+
+              {/* Batch Selection */}
+              {recipientType === "BATCH_WISE" && (
+                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
+                  <label htmlFor="notice-batch" className={labelClass}>
+                    Select Batch <span className="text-rose-500">*</span>
+                  </label>
+
                   <select
+                    id="notice-batch"
+                    name="batchId"
                     className={inputClass}
                     required
                     value={batchId}
                     onChange={(event) => setBatchId(event.target.value)}
                   >
-                    <option value="">Select a batch</option>
+                    <option value="">Choose a batch</option>
                     {batches.map((batch) => (
                       <option key={batch._id} value={batch._id}>
                         {batch.name}
                       </option>
                     ))}
                   </select>
-                </label>
+
+                  {batches.length === 0 && (
+                    <p className="mt-2 text-xs text-rose-600">
+                      No batches are available.
+                    </p>
+                  )}
+                </div>
               )}
 
+              {/* Single Student Search */}
               {recipientType === "SINGLE_STUDENT" && (
-                <div className="space-y-2">
-                  <label
-                    htmlFor="notice-student-search"
-                    className="block text-sm font-medium text-slate-700"
-                  >
-                    Student Search
+                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
+                  <label htmlFor="notice-student-search" className={labelClass}>
+                    Select Student <span className="text-rose-500">*</span>
                   </label>
 
                   <input
                     id="notice-student-search"
+                    name="studentSearch"
                     className={inputClass}
-                    required
                     value={studentSearch}
-                    placeholder="Search by name or mobile number"
+                    placeholder="Enter student name or mobile number"
                     onChange={(event) => {
                       setStudentSearch(event.target.value);
                       setSelectedStudent(null);
@@ -515,55 +663,73 @@ export function NoticesManagement({
                   />
 
                   {selectedStudent && (
-                    <span className="inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
-                      {selectedStudent.name} · {selectedStudent.phone}
-                    </span>
+                    <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                          Selected Student
+                        </p>
+                        <p className="mt-1 break-words text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+                          {selectedStudent.name}
+                        </p>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                          {selectedStudent.phone}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/50"
+                        onClick={() => {
+                          setSelectedStudent(null);
+                          setStudentSearch("");
+                          setStudentOptions([]);
+                        }}
+                      >
+                        Change
+                      </button>
+                    </div>
                   )}
 
                   {searchingStudents && (
-                    <small className="block text-sm text-slate-500">
-                      Searching students…
-                    </small>
+                    <p className="mt-3 text-sm text-slate-500">
+                      Searching students...
+                    </p>
                   )}
 
                   {studentSearchError && (
-                    <small
-                      className="block rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+                    <p
+                      className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
                       role="alert"
                     >
                       {studentSearchError}
-                    </small>
+                    </p>
                   )}
 
                   {!searchingStudents && studentOptions.length > 0 && (
-                    <div
-                      className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm"
-                      role="listbox"
-                      aria-label="Matching students"
-                    >
+                    <div className="mt-3 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
                       {studentOptions.map((student) => (
                         <button
                           type="button"
                           key={student._id}
-                          role="option"
-                          aria-selected={
-                            selectedStudent?._id === student._id
-                          }
-                          className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-b-0 hover:bg-blue-50 aria-selected:bg-blue-50"
+                          className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-blue-50 dark:border-slate-800 dark:hover:bg-slate-800"
                           onClick={() => {
                             setSelectedStudent(student);
                             setStudentSearch(
-                              `${student.name} · ${student.phone}`,
+                              `${student.name} · ${student.phone}`
                             );
                             setStudentOptions([]);
-                            setSearchingStudents(false);
                           }}
                         >
-                          <strong className="text-sm font-semibold text-slate-800">
-                            {student.name}
-                          </strong>
-                          <span className="text-sm text-slate-500">
-                            {student.phone}
+                          <span className="min-w-0">
+                            <span className="block break-words text-sm font-semibold text-slate-800 dark:text-slate-100">
+                              {student.name}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-slate-500">
+                              {student.phone}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-xs font-semibold text-blue-600">
+                            Select
                           </span>
                         </button>
                       ))}
@@ -575,28 +741,73 @@ export function NoticesManagement({
                     !selectedStudent &&
                     !studentSearchError &&
                     studentOptions.length === 0 && (
-                      <small className="block text-sm text-slate-500">
+                      <p className="mt-3 text-sm text-slate-500">
                         No matching students found.
-                      </small>
+                      </p>
                     )}
                 </div>
               )}
 
+              {/* Title */}
+              <div>
+                <label htmlFor="notice-title" className={labelClass}>
+                  Notice Title <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  id="notice-title"
+                  name="title"
+                  className={inputClass}
+                  required
+                  maxLength={120}
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="Enter notice title"
+                />
+                <p className="mt-1.5 text-right text-xs text-slate-400">
+                  {title.length}/120
+                </p>
+              </div>
+
+              {/* Message */}
+              <div>
+                <label htmlFor="notice-message" className={labelClass}>
+                  Message <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  id="notice-message"
+                  name="message"
+                  className={`${inputClass} min-h-36 resize-y leading-6`}
+                  required
+                  rows={5}
+                  maxLength={3000}
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  placeholder="Write your notice message here..."
+                />
+                <p className="mt-1.5 text-right text-xs text-slate-400">
+                  {message.length}/3000
+                </p>
+              </div>
+
               {error && (
                 <div
-                  className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+                  className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
                   role="alert"
                 >
                   {error}
                 </div>
               )}
 
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+              {/* Actions */}
+              <footer className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 dark:border-slate-800 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   className={outlineButtonClass}
                   disabled={saving}
-                  onClick={() => setCreateOpen(false)}
+                  onClick={() => {
+                    resetForm();
+                    setCreateOpen(false);
+                  }}
                 >
                   Cancel
                 </button>
@@ -604,16 +815,21 @@ export function NoticesManagement({
                 <button
                   className={primaryButtonClass}
                   type="submit"
-                  disabled={saving}
+                  disabled={
+                    saving ||
+                    (recipientType === "BATCH_WISE" && !batchId) ||
+                    (recipientType === "SINGLE_STUDENT" && !selectedStudent)
+                  }
                 >
-                  {saving ? "Saving…" : "Send Notice"}
+                  {saving ? "Sending..." : "Send Notice"}
                 </button>
-              </div>
+              </footer>
             </form>
           </section>
         </div>
       )}
 
+      {/* VIEW NOTICE DETAILS */}
       {selectedNotice && (
         <div
           className={dialogBackdropClass}
@@ -629,113 +845,129 @@ export function NoticesManagement({
             aria-modal="true"
             aria-labelledby="notice-details-title"
           >
-            <button
-              type="button"
-              className="absolute right-4 top-3 rounded-lg px-2 py-1 text-2xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-              aria-label="Close notice details"
-              onClick={() => setSelectedNotice(null)}
-            >
-              ×
-            </button>
-
-            <div className="pr-8">
-              <div className="text-xs font-bold tracking-[0.18em] text-blue-600">
-                NOTICE MANAGEMENT
+            <header className="flex items-start justify-between gap-4 border-b border-slate-200 p-5 dark:border-slate-800 sm:p-7">
+              <div>
+                <p className="text-xs font-bold tracking-[0.18em] text-blue-600">
+                  NOTICE MANAGEMENT
+                </p>
+                <h2
+                  id="notice-details-title"
+                  className="mt-2 text-xl font-bold text-slate-900 dark:text-white"
+                >
+                  Notice Details
+                </h2>
               </div>
-              <h2
-                id="notice-details-title"
-                className="mt-2 text-2xl font-bold text-slate-900"
+
+              <button
+                type="button"
+                aria-label="Close notice details"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                onClick={() => setSelectedNotice(null)}
               >
-                Notice Details
-              </h2>
-            </div>
+                ×
+              </button>
+            </header>
 
-            <dl className="mt-6 divide-y divide-slate-200">
-              <div className="py-4 first:pt-0">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <div className="space-y-5 p-5 sm:p-7">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Notice Title
-                </dt>
-                <dd className="mt-2 break-words text-sm font-semibold text-slate-900">
+                </p>
+                <p className="mt-2 break-words text-base font-semibold text-slate-900 dark:text-white">
                   {selectedNotice.title}
-                </dd>
+                </p>
               </div>
 
-              <div className="py-4">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Complete Notice Message
-                </dt>
-                <dd className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
+                </p>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7 text-slate-700 dark:text-slate-300">
                   {selectedNotice.message}
-                </dd>
+                </p>
               </div>
 
-              <div className="py-4">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Recipient Type
-                </dt>
-                <dd className="mt-2 text-sm font-medium text-slate-800">
-                  {recipientLabels[selectedNotice.recipientType]}
-                </dd>
-              </div>
-
-              {selectedNotice.recipientType === "BATCH_WISE" && (
-                <div className="py-4">
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Batch
-                  </dt>
-                  <dd className="mt-2 text-sm font-medium text-slate-800">
-                    {selectedNotice.batchId?.name ?? "Batch unavailable"}
-                  </dd>
+              <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-5 dark:border-slate-800 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Recipient Type
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {recipientLabels[selectedNotice.recipientType]}
+                  </p>
                 </div>
-              )}
 
-              {selectedNotice.recipientType === "SINGLE_STUDENT" && (
-                <div className="py-4">
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Student
-                  </dt>
-                  <dd className="mt-2 text-sm font-medium text-slate-800">
-                    {selectedNotice.studentId
-                      ? `${selectedNotice.studentId.name} · ${selectedNotice.studentId.phone}`
-                      : "Student unavailable"}
-                  </dd>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Publish Date
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {publishDate(selectedNotice.createdAt)}
+                  </p>
                 </div>
-              )}
 
-              <div className="py-4 last:pb-0">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Publish Date
-                </dt>
-                <dd className="mt-2 text-sm font-medium text-slate-800">
-                  {publishDate(selectedNotice.createdAt)}
-                </dd>
+                {selectedNotice.recipientType === "BATCH_WISE" && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Batch
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-slate-800 dark:text-slate-200">
+                      {selectedNotice.batchId?.name ?? "Batch unavailable"}
+                    </p>
+                  </div>
+                )}
+
+                {selectedNotice.recipientType === "SINGLE_STUDENT" && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Student
+                    </p>
+                    <p className="mt-2 break-words text-sm font-medium text-slate-800 dark:text-slate-200">
+                      {selectedNotice.studentId
+                        ? `${selectedNotice.studentId.name} · ${selectedNotice.studentId.phone}`
+                        : "Student unavailable"}
+                    </p>
+                  </div>
+                )}
               </div>
-            </dl>
+
+              <div className="flex justify-end border-t border-slate-200 pt-5 dark:border-slate-800">
+                <button
+                  type="button"
+                  className={primaryButtonClass}
+                  onClick={() => setSelectedNotice(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       )}
 
+      {/* DELETE CONFIRMATION */}
       {noticeToDelete && (
         <div className={dialogBackdropClass}>
           <section
-            className={`${dialogClass} max-w-md`}
+            className={`${dialogClass} max-w-md p-5 sm:p-7`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="notice-delete-title"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-xl font-bold text-rose-600">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-xl font-bold text-rose-600 dark:bg-rose-950/50">
               !
             </div>
 
             <h2
               id="notice-delete-title"
-              className="mt-4 text-xl font-bold text-slate-900"
+              className="mt-4 text-xl font-bold text-slate-900 dark:text-white"
             >
-              Delete Notice
+              Delete Notice?
             </h2>
 
-            <p className="mt-2 break-words text-sm leading-6 text-slate-600">
-              Delete “{noticeToDelete.title}” permanently?
+            <p className="mt-2 break-words text-sm leading-6 text-slate-600 dark:text-slate-400">
+              Are you sure you want to permanently delete “
+              {noticeToDelete.title}”?
             </p>
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -750,11 +982,11 @@ export function NoticesManagement({
 
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-rose-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={deleting}
                 onClick={() => void confirmDelete()}
               >
-                {deleting ? "Deleting…" : "Confirm Delete"}
+                {deleting ? "Deleting..." : "Confirm Delete"}
               </button>
             </div>
           </section>

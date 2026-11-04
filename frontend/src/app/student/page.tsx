@@ -19,10 +19,17 @@ export default function StudentHomePage() {
   useEffect(() => {
     let active = true;
 
-    void fetch(`${API}/auth/session`, { credentials: "include" })
-      .then(async (response) =>
-        response.ok ? response.json() : null
-      )
+        void fetch(`${API}/auth/session`, {
+  method: "GET",
+  credentials: "include",
+  cache: "no-store",
+  headers: {
+    "Cache-Control": "no-cache",
+  },
+})
+  .then(async (response) =>
+    response.ok ? response.json() : null
+  )
       .then((session) => {
         if (!active) return;
 
@@ -56,6 +63,22 @@ export default function StudentHomePage() {
     };
   }, [router, activateRole, clearRole]);
 
+  const handleLogout = async () => {
+  try {
+    await fetch(`${API}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    });
+  } catch (error) {
+    console.error("Student logout failed:", error);
+  } finally {
+    clearRole();
+    router.replace("/student/login");
+    router.refresh();
+  }
+};
+
   const brandClass =
     "flex items-center gap-[17px] text-inherit no-underline [&>span:last-child]:grid [&>span:last-child]:gap-[3px] [&_strong]:text-[29px] [&_strong]:leading-[1.15] [&_strong]:tracking-[-0.8px] [&_strong]:text-[#101a4a] [&_small]:mt-0.5 [&_small]:text-[13px] [&_small]:tracking-[2px] [&_small]:text-[#6d70ae] max-[560px]:[&_strong]:text-[19px] max-[560px]:[&_small]:text-[9px] dark:[&_strong]:text-[#f0eef8]";
 
@@ -88,7 +111,15 @@ export default function StudentHomePage() {
               {settingsOpen ? "Dashboard" : "Settings"}
             </button>
           )}
-
+             {authenticated && (
+                  <button
+                  className={headerButtonClass}
+                  type="button"
+                  onClick={handleLogout}
+                >
+               Logout
+            </button>
+              )}
           <Link className={headerButtonClass} href="/">
             Home
           </Link>
