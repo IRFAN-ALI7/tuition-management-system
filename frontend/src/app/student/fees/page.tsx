@@ -1,16 +1,11 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AlertCircle,
-  CreditCard,
-  GraduationCap,
-  ReceiptText,
-} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
 import PageHeader from "@/components/student/ui/PageHeader";
+import LoadingState from "@/components/student/ui/LoadingState";
 
 import FeeOverview from "@/components/student/fees/FeeOverview";
 import MonthlyFeeStatement from "@/components/student/fees/MonthlyFeeStatement";
@@ -20,40 +15,33 @@ import FeeReceiptModal from "@/components/student/fees/FeeReceiptModal";
 
 import {
   type StudentFeeData,
+  type StudentFeeMonth,
   type StudentFeePayment,
-  type StudentReceipt,
+  type StudentMonthDetails,
 } from "@/types/student-fees";
 
-const CURRENT_DATE = new Date();
-const CURRENT_YEAR = CURRENT_DATE.getFullYear();
-const CURRENT_MONTH = CURRENT_DATE.getMonth() + 1;
-const PAYMENT_LIMIT = 5;
-
 export default function StudentFeesPage() {
-  const [year, setYear] = useState(CURRENT_YEAR);
-  const [selectedMonth, setSelectedMonth] = useState(CURRENT_MONTH);
+  const currentDate = new Date();
+
+  const [year, setYear] = useState(currentDate.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(
+    currentDate.getMonth() + 1,
+  );
   const [paymentPage, setPaymentPage] = useState(1);
 
   const [data, setData] = useState<StudentFeeData | null>(null);
+  const [monthDetails, setMonthDetails] =
+    useState<StudentMonthDetails | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [monthLoading, setMonthLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const [receipt, setReceipt] = useState<StudentReceipt | null>(null);
-  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [monthError, setMonthError] = useState("");
   const [receiptError, setReceiptError] = useState("");
 
-  const availableYears = useMemo(
-    () =>
-      Array.from(
-        { length: 10 },
-        (_, index) => CURRENT_YEAR - index
-      ),
-    []
-  );
+  const [receipt, setReceipt] = useState<StudentFeePayment | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
 
-  // Retry fee data loading
   const loadFees = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -62,112 +50,62 @@ export default function StudentFeesPage() {
       const params = new URLSearchParams({
         year: String(year),
         paymentPage: String(paymentPage),
-        paymentLimit: String(PAYMENT_LIMIT),
+        paymentLimit: "10",
       });
 
-      const response = await api(
-        `/student/fees?${params.toString()}`
-      );
+      const response = (await api(
+        `/student/fees?${params.toString()}`,
+      )) as StudentFeeData;
 
-      setData(response as StudentFeeData);
+      setData(response);
     } catch (caught) {
       setError(
         caught instanceof Error
           ? caught.message
-          : "Unable to load fee details."
+          : "Unable to load fee details.",
       );
     } finally {
       setLoading(false);
-      setPaymentsLoading(false);
     }
   }, [year, paymentPage]);
 
-  // Load fee details whenever year or payment page changes
+  const loadMonthDetails = useCallback(async () => {
+    setMonthLoading(true);
+    setMonthError("");
+
+    try {
+      const response = (await api(
+        `/student/fees/months/${year}/${selectedMonth}`,
+      )) as StudentMonthDetails;
+
+      setMonthDetails(response);
+    } catch (caught) {
+      setMonthDetails(null);
+      setMonthError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to load this month's details.",
+      );
+    } finally {
+      setMonthLoading(false);
+    }
+  }, [year, selectedMonth]);
+
   useEffect(() => {
-    let cancelled = false;
+    void loadFees();
+  }, [loadFees]);
 
-    async function load() {
-      if (data) {
-        setPaymentsLoading(true);
-      } else {
-        setLoading(true);
-      }
-
-      try {
-        const params = new URLSearchParams({
-          year: String(year),
-          paymentPage: String(paymentPage),
-          paymentLimit: String(PAYMENT_LIMIT),
-        });
-
-        const response = await api(
-          `/student/fees?${params.toString()}`
-        );
-
-        if (cancelled) return;
-
-        setData(response as StudentFeeData);
-        setError("");
-      } catch (caught) {
-        if (!cancelled) {
-          setError(
-            caught instanceof Error
-              ? caught.message
-              : "Unable to load fee details."
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-          setPaymentsLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [year, paymentPage]);
-
-  const months = data?.months ?? [];
-
-  const selectedMonthData = useMemo(
-    () =>
-      months.find((item) => item.month === selectedMonth),
-    [months, selectedMonth]
-  );
-
-  const paidMonths = months.filter(
-    (item) => item.status === "Paid"
-  ).length;
-
-  const totalRecordedMonths = months.filter(
-    (item) => item.status === "Paid" || item.status === "Due"
-  ).length;
-
-  const totalPaid = data?.totals.paidAmount ?? 0;
-  const totalDue = data?.totals.dueAmount ?? 0;
-
-  const payments: StudentFeePayment[] = data?.payments ?? [];
-
-  const paymentPagination = data?.paymentPagination ?? {
-    page: 1,
-    limit: PAYMENT_LIMIT,
-    total: 0,
-    totalPages: 1,
-  };
+  useEffect(() => {
+    void loadMonthDetails();
+  }, [loadMonthDetails]);
 
   function handleYearChange(nextYear: number) {
     setYear(nextYear);
     setPaymentPage(1);
+  }
 
-    if (nextYear === CURRENT_YEAR) {
-      setSelectedMonth(CURRENT_MONTH);
-    } else {
-      setSelectedMonth(12);
-    }
+  function handleMonthSelect(month: number) {
+    setSelectedMonth(month);
   }
 
   async function handleReceipt(paymentId: string) {
@@ -176,188 +114,155 @@ export default function StudentFeesPage() {
 
     try {
       const response = await api(
-        `/student/fees/payments/${encodeURIComponent(paymentId)}`
+        `/student/fees/payments/${encodeURIComponent(paymentId)}`,
       );
 
-      setReceipt(response.payment as StudentReceipt);
+      setReceipt(response.payment as StudentFeePayment);
     } catch (caught) {
       setReceiptError(
         caught instanceof Error
           ? caught.message
-          : "Unable to open receipt."
+          : "Unable to load receipt.",
       );
     } finally {
       setReceiptLoading(false);
     }
   }
 
-  if (loading) {
+  if (loading && !data) {
+    return <LoadingState message="Loading your fee statement..." />;
+  }
+
+  if (error && !data) {
     return (
-      <div className="mx-auto max-w-[1320px] space-y-5">
-        <PageHeader
-          title="My Fees"
-          description="View your monthly fee statement and payment history."
-        />
+      <div className="space-y-5">
+        <PageHeader title="My Fees" />
 
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-28 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800"
-            />
-          ))}
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-900 dark:bg-red-950/30">
+          <p className="text-sm font-bold text-red-700 dark:text-red-300">
+            Unable to load fee details
+          </p>
+
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => void loadFees()}
+            className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white"
+          >
+            Try Again
+          </button>
         </div>
-
-        <div className="h-80 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
-        <div className="h-64 animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800" />
       </div>
     );
   }
 
+  const months: StudentFeeMonth[] = data?.months ?? [];
+  const totals = data?.totals ?? {
+    feeAmount: 0,
+    paidAmount: 0,
+    dueAmount: 0,
+  };
+
+  const pagination = data?.paymentPagination ?? {
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1,
+  };
+
+  const yearOptions = Array.from(
+    { length: 10 },
+    (_, index) => currentDate.getFullYear() - index,
+  );
+
   return (
-    <div className="mx-auto max-w-[1320px] space-y-5 pb-5 sm:space-y-6">
+    <div className="mx-auto max-w-[1450px] space-y-5 pb-8 sm:space-y-6">
       <PageHeader
         title="My Fees"
-        description="View your monthly fee statement, outstanding dues and complete payment history."
-      />
-
-      {/* Fee page introduction */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-700 via-violet-600 to-indigo-600 p-5 text-white shadow-lg shadow-violet-900/10 sm:p-6">
-        <div className="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-16 right-1/3 h-40 w-40 rounded-full bg-indigo-300/20 blur-3xl" />
-
-        <div className="relative flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-violet-100">
-              <CreditCard className="h-3.5 w-3.5" />
-              Student Portal / Fees
-            </div>
-
-            <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-              My Fees
-            </h1>
-
-            <p className="mt-2 max-w-xl text-xs leading-5 text-violet-100 sm:text-sm">
-              Your fee account, month-wise payment status and
-              downloadable payment receipts — all in one place.
-            </p>
-          </div>
-
-          <div className="hidden h-20 w-20 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 sm:grid">
-            <GraduationCap className="h-10 w-10 text-white" />
-          </div>
-        </div>
-      </section>
-
-      {/* Error message */}
-      {error && (
-        <div
-          role="alert"
-          className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
-        >
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-
-          <div>
-            <p className="font-bold">Unable to load fee details</p>
-            <p className="mt-1 text-xs">{error}</p>
-
-            <button
-              type="button"
-              onClick={() => void loadFees()}
-              className="mt-2 text-xs font-bold underline"
+        description="Track monthly fees, installments, remaining dues and payment receipts."
+        action={
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+            Academic Year
+            <select
+              value={year}
+              onChange={(event) =>
+                handleYearChange(Number(event.target.value))
+              }
+              className="bg-transparent font-bold text-slate-900 outline-none dark:text-white"
             >
-              Try again
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Overview */}
-      <FeeOverview
-        monthlyFee={data?.student.monthlyFees ?? null}
-        totalPaid={totalPaid}
-        totalDue={totalDue}
-        paidMonths={paidMonths}
-        totalMonths={totalRecordedMonths}
+              {yearOptions.map((item) => (
+                <option
+                  key={item}
+                  value={item}
+                  className="bg-white text-slate-900"
+                >
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+        }
       />
 
-      {/* Monthly statement */}
-      {data && (
-        <MonthlyFeeStatement
-          months={months}
-          year={year}
-          currentYear={CURRENT_YEAR}
-          currentMonth={CURRENT_MONTH}
-          selectedMonth={selectedMonth}
-          availableYears={availableYears}
-          onYearChange={handleYearChange}
-          onMonthSelect={setSelectedMonth}
-        />
+      {error && (
+        <p className="rounded-xl bg-red-50 p-3 text-xs text-red-600 dark:bg-red-950/30 dark:text-red-400">
+          {error}
+        </p>
       )}
 
-      {/* Selected month details */}
-      {data && (
-        <SelectedMonthDetails
-          month={selectedMonthData}
-          year={year}
-        />
-      )}
+      <FeeOverview months={months} totals={totals} />
 
-      {/* Payment history */}
+      <MonthlyFeeStatement
+        year={year}
+        months={months}
+        selectedMonth={selectedMonth}
+        onSelectMonth={handleMonthSelect}
+      />
+
+      <SelectedMonthDetails
+        month={monthDetails?.month ?? null}
+        installments={monthDetails?.installments ?? []}
+        loading={monthLoading}
+        error={monthError}
+        onRetry={() => void loadMonthDetails()}
+        onReceipt={handleReceipt}
+      />
+
       <PaymentHistory
-        payments={payments}
-        pagination={paymentPagination}
-        loading={paymentsLoading}
+        payments={data?.payments ?? []}
+        pagination={pagination}
         onPageChange={setPaymentPage}
         onReceipt={handleReceipt}
       />
 
-      {/* Receipt loading */}
       {receiptLoading && (
-        <div className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/30 p-4 backdrop-blur-sm">
-          <div className="rounded-xl bg-white px-5 py-4 text-sm font-semibold text-slate-800 shadow-xl dark:bg-slate-900 dark:text-white">
-            Loading receipt...
+        <div className="fixed inset-0 z-[10000] grid place-items-center bg-slate-950/40 p-4">
+          <div className="rounded-xl bg-white px-5 py-4 text-sm font-semibold text-slate-700 shadow-xl dark:bg-slate-900 dark:text-white">
+            Loading payment receipt...
           </div>
         </div>
       )}
 
-      {/* Receipt error */}
       {receiptError && (
-        <div
-          role="alert"
-          className="fixed bottom-5 right-5 z-[110] flex max-w-sm items-start gap-3 rounded-xl border border-red-200 bg-white p-4 text-sm text-red-700 shadow-xl dark:border-red-900 dark:bg-slate-900 dark:text-red-300"
-        >
-          <AlertCircle className="h-5 w-5 shrink-0" />
-
-          <div className="min-w-0 flex-1">
-            {receiptError}
-
-            <button
-              type="button"
-              onClick={() => setReceiptError("")}
-              className="ml-2 font-bold underline"
-            >
-              Close
-            </button>
-          </div>
+        <div className="fixed bottom-5 right-5 z-[10001] max-w-sm rounded-xl border border-red-200 bg-white p-4 text-xs text-red-700 shadow-xl dark:border-red-900 dark:bg-slate-900 dark:text-red-300">
+          <p>{receiptError}</p>
+          <button
+            type="button"
+            onClick={() => setReceiptError("")}
+            className="mt-2 font-bold underline"
+          >
+            Close
+          </button>
         </div>
       )}
 
-      {/* Receipt modal */}
-      {receipt && (
-        <FeeReceiptModal
-          receipt={receipt}
-          onClose={() => setReceipt(null)}
-        />
-      )}
-
-      {/* Footer */}
-      <div className="flex flex-wrap items-center justify-center gap-2 border-t border-slate-200 pt-4 text-[10px] text-slate-400 dark:border-slate-800">
-        <ReceiptText className="h-3.5 w-3.5" />
-        <span>Udaan Learning Centre · Your fee account</span>
-        <span>·</span>
-        <span>Your payments are recorded by the Tuition Admin.</span>
-      </div>
+      <FeeReceiptModal
+        payment={receipt}
+        onClose={() => setReceipt(null)}
+      />
     </div>
   );
 }

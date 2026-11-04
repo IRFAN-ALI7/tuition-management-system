@@ -3,162 +3,149 @@
 
 import { useEffect } from "react";
 import {
-  Download,
-  Printer,
-  X,
-} from "lucide-react";
-
-import {
-  FEE_MONTHS,
+  type StudentFeePayment,
+  money,
+  MONTHS,
   formatFeeDate,
-  formatMoney,
-  type StudentReceipt,
+  formatFeeDateTime,
 } from "@/types/student-fees";
 
 interface Props {
-  receipt: StudentReceipt;
+  payment: StudentFeePayment | null;
   onClose: () => void;
 }
 
-export default function FeeReceiptModal({
-  receipt,
-  onClose,
-}: Props) {
+export default function FeeReceiptModal({ payment, onClose }: Props) {
   useEffect(() => {
+    if (!payment) return;
+
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
     }
 
     document.addEventListener("keydown", handleEscape);
 
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [onClose]);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [payment, onClose]);
 
-  function handlePrint() {
-    window.print();
-  }
-
-  const student = receipt.student;
-  const details = receipt.receiptDetails;
+  if (!payment) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-3 backdrop-blur-sm sm:p-6"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-3 backdrop-blur-sm sm:p-6"
+      onClick={onClose}
     >
       <section
+        className="my-auto w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl sm:p-7"
         role="dialog"
         aria-modal="true"
         aria-labelledby="student-receipt-title"
-        className="relative my-auto max-h-[94dvh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl dark:bg-slate-900 sm:p-7"
+        onClick={(event) => event.stopPropagation()}
       >
-        <div className="receipt-print-area">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-violet-600 text-xl font-black text-white">
-                U
-              </div>
-
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">
-                  Udaan Learning Centre
-                </h2>
-                <p className="text-[10px] font-bold tracking-[0.15em] text-violet-600 dark:text-violet-400">
-                  FEE PAYMENT RECEIPT
-                </p>
-              </div>
+        <div className="fee-receipt-print">
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-violet-700 text-xl font-extrabold text-white">
+              U
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="receipt-hide grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-              aria-label="Close receipt"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-900">
+                Udaan Learning Centre
+              </h2>
+              <p className="text-[10px] font-bold tracking-[0.16em] text-slate-500">
+                OFFICIAL FEE PAYMENT RECEIPT
+              </p>
+            </div>
           </div>
 
-          <div className="my-5 border-t-2 border-dashed border-slate-200 dark:border-slate-700" />
+          <div className="my-5 border-t-2 border-dashed border-slate-200" />
 
           <div className="text-center">
             <h3
               id="student-receipt-title"
-              className="text-2xl font-extrabold text-slate-900 dark:text-white"
+              className="text-2xl font-extrabold text-slate-900"
             >
               Payment Receipt
             </h3>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Official payment confirmation
+            <p className="mt-1 text-xs text-slate-500">
+              Payment confirmation
+            </p>
+            <p className="mt-3 text-sm font-extrabold text-violet-700">
+              {payment.receiptNumber}
             </p>
           </div>
 
-          <div className="mt-5 rounded-xl bg-violet-50 p-4 text-center dark:bg-violet-950/30">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
-              Amount Received
+          <div className="mt-6 rounded-xl bg-slate-50 p-4">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Student Details
             </p>
-            <p className="mt-1 text-3xl font-extrabold text-violet-800 dark:text-violet-200">
-              {formatMoney(receipt.amount)}
-            </p>
-            <p className="mt-1 break-all text-[10px] font-semibold text-violet-600 dark:text-violet-400">
-              {receipt.receiptNumber}
-            </p>
-          </div>
 
-          <div className="mt-5">
-            <h4 className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-500">
-              Student Information
-            </h4>
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <p className="text-slate-500">Student Name</p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {payment.student?.name ?? "—"}
+                </p>
+              </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                ["Student Name", student.name],
-                ["Student ID", student.studentId || "—"],
-                ["Father's Name", student.fatherName || "—"],
-                ["Class", student.className || "—"],
-                ["Mobile", student.phone || "—"],
-                ["Admission Date", formatFeeDate(student.admissionDate)],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="min-w-0 rounded-lg border border-slate-200 p-3 dark:border-slate-700"
-                >
-                  <p className="text-[9px] text-slate-500 dark:text-slate-400">
-                    {label}
-                  </p>
-                  <p className="mt-1 break-words text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {value}
-                  </p>
-                </div>
-              ))}
+              <div>
+                <p className="text-slate-500">Student ID</p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {payment.student?.studentId ?? "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-slate-500">Father Name</p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {payment.student?.fatherName ?? "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-slate-500">Class</p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {payment.student?.className ?? "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-slate-500">Phone</p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {payment.student?.phone ?? "—"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-slate-500">Monthly Fee</p>
+                <p className="mt-1 font-bold text-slate-900">
+                  {money(payment.student?.monthlyFees)}
+                </p>
+              </div>
             </div>
           </div>
 
           <div className="mt-5">
-            <h4 className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-500">
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               Payment Information
-            </h4>
+            </p>
 
-            <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-3 dark:divide-slate-800 dark:border-slate-700">
+            <div className="divide-y divide-slate-100 border-y border-slate-200">
               {[
-                ["Receipt Number", receipt.receiptNumber],
-                ["Payment Date", formatFeeDate(receipt.paymentDate)],
-                ["Payment Method", receipt.method],
-                ["Reference Number", receipt.referenceNumber || "—"],
-                ["Monthly Fee", formatMoney(student.monthlyFees)],
+                ["Payment Date", formatFeeDate(payment.paymentDate)],
+                [
+                  "Recorded Date & Time",
+                  formatFeeDateTime(payment.createdAt),
+                ],
+                ["Payment Method", payment.method],
+                ["Reference Number", payment.referenceNumber || "—"],
               ].map(([label, value]) => (
                 <div
                   key={label}
-                  className="flex items-start justify-between gap-3 py-3 text-xs"
+                  className="grid grid-cols-2 gap-3 py-3 text-xs"
                 >
-                  <span className="text-slate-500 dark:text-slate-400">
-                    {label}
-                  </span>
-                  <strong className="max-w-[60%] break-words text-right text-slate-800 dark:text-slate-200">
+                  <span className="text-slate-500">{label}</span>
+                  <strong className="break-words text-right text-slate-900">
                     {value}
                   </strong>
                 </div>
@@ -167,76 +154,84 @@ export default function FeeReceiptModal({
           </div>
 
           <div className="mt-5">
-            <h4 className="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-500">
-              Payment Allocation
-            </h4>
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Month-wise Payment Allocation
+            </p>
 
-            <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
-              {receipt.allocations.map((allocation, index) => (
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              {payment.allocations.map((allocation, index) => (
                 <div
                   key={`${allocation.year}-${allocation.month}-${index}`}
-                  className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 text-xs last:border-0 dark:border-slate-800"
+                  className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-3 text-xs last:border-0"
                 >
-                  <span className="text-slate-600 dark:text-slate-300">
-                    {FEE_MONTHS[allocation.month - 1]} {allocation.year}
+                  <span className="text-slate-600">
+                    {MONTHS[allocation.month - 1]} {allocation.year}
                   </span>
-                  <strong className="text-slate-900 dark:text-white">
-                    {formatMoney(allocation.amount)}
+                  <strong className="text-slate-900">
+                    {money(allocation.amount)}
                   </strong>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-            <h4 className="mb-2 text-xs font-extrabold text-slate-700 dark:text-slate-200">
-              Account Summary
-            </h4>
+          <div className="mt-5 flex items-center justify-between rounded-xl bg-green-50 p-4">
+            <div>
+              <p className="text-xs font-bold text-green-800">
+                Total Amount Received
+              </p>
+              <p className="mt-1 text-[10px] text-green-700">
+                Payment recorded successfully
+              </p>
+            </div>
 
-            {[
-              ["Total Fee Ledger", details.totalDue],
-              ["Total Paid", details.totalPaid],
-              ["Remaining Due", details.remainingDue],
-            ].map(([label, value]) => (
-              <div
-                key={String(label)}
-                className="flex items-center justify-between gap-3 py-1.5 text-xs"
-              >
-                <span className="text-slate-500 dark:text-slate-400">
-                  {label}
-                </span>
-                <strong className="text-slate-800 dark:text-slate-200">
-                  {formatMoney(Number(value))}
-                </strong>
-              </div>
-            ))}
+            <p className="text-xl font-extrabold text-green-700">
+              {money(payment.amount)}
+            </p>
           </div>
 
-          <div className="mt-6 border-t border-dashed border-slate-300 pt-4 text-center dark:border-slate-700">
-            <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Thank you for your payment.
+          {payment.receiptDetails && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p className="text-[10px] text-slate-500">Total Paid</p>
+                <p className="mt-1 text-sm font-bold text-green-700">
+                  {money(payment.receiptDetails.totalPaid)}
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-slate-50 p-3">
+                <p className="text-[10px] text-slate-500">Remaining Due</p>
+                <p className="mt-1 text-sm font-bold text-red-600">
+                  {money(payment.receiptDetails.remainingDue)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 border-t border-dashed border-slate-300 pt-4 text-center">
+            <p className="text-xs font-semibold text-slate-700">
+              Udaan Learning Centre
             </p>
             <p className="mt-1 text-[10px] text-slate-400">
-              Udaan Learning Centre
+              Thank you for your payment.
             </p>
           </div>
         </div>
 
-        <div className="receipt-hide mt-5 flex flex-col-reverse gap-2 border-t border-slate-200 pt-4 dark:border-slate-700 sm:flex-row sm:justify-end">
+        <div className="mt-6 flex flex-col-reverse justify-end gap-2 border-t border-slate-200 pt-4 sm:flex-row print:hidden">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="rounded-lg border border-slate-300 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
           >
             Close
           </button>
 
           <button
             type="button"
-            onClick={handlePrint}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-violet-700"
+            onClick={() => window.print()}
+            className="rounded-lg bg-violet-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-violet-800"
           >
-            <Download className="h-4 w-4" />
             Print / Save as PDF
           </button>
         </div>
@@ -248,27 +243,23 @@ export default function FeeReceiptModal({
             visibility: hidden !important;
           }
 
-          .receipt-print-area,
-          .receipt-print-area * {
+          .fee-receipt-print,
+          .fee-receipt-print * {
             visibility: visible !important;
           }
 
-          .receipt-print-area {
+          .fee-receipt-print {
             position: absolute !important;
-            inset: 0 !important;
+            inset: 0 auto auto 0 !important;
             width: 100% !important;
-            padding: 24px !important;
+            padding: 12mm !important;
+            color: #111827 !important;
             background: white !important;
-            color: #0f172a !important;
-          }
-
-          .receipt-hide {
-            display: none !important;
           }
 
           @page {
             size: A4;
-            margin: 12mm;
+            margin: 0;
           }
         }
       `}</style>

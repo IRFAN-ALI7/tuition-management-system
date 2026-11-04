@@ -1,14 +1,16 @@
 
+export type FeeStatus = "Paid" | "Due" | "Upcoming" | "Not due";
+
 export interface StudentFeeMonth {
   year: number;
   month: number;
   feeAmount: number;
   paidAmount: number;
   remainingAmount: number;
-  status: "Paid" | "Due" | "Upcoming" | "Not due" | string;
+  status: FeeStatus | string;
 }
 
-export interface StudentFeePaymentAllocation {
+export interface StudentFeeAllocation {
   year: number;
   month: number;
   amount: number;
@@ -17,13 +19,29 @@ export interface StudentFeePaymentAllocation {
 export interface StudentFeePayment {
   _id: string;
   receiptNumber: string;
-  studentId: string;
+  studentId?: string;
   amount: number;
   paymentDate: string;
   method: string;
   referenceNumber?: string;
-  allocations: StudentFeePaymentAllocation[];
+  allocations: StudentFeeAllocation[];
   createdAt?: string;
+  actualPaymentDate?: string;
+  student?: {
+    _id?: string;
+    studentId?: string;
+    name: string;
+    phone?: string;
+    fatherName?: string;
+    className?: string;
+    admissionDate?: string;
+    monthlyFees?: number | null;
+  };
+  receiptDetails?: {
+    totalDue: number;
+    totalPaid: number;
+    remainingDue: number;
+  };
 }
 
 export interface StudentFeeProfile {
@@ -32,11 +50,16 @@ export interface StudentFeeProfile {
   name: string;
   monthlyFees: number | null;
   batch?: {
-    _id: string;
     name: string;
-    startTime?: string;
-    endTime?: string;
+    startTime: string;
+    endTime: string;
   } | null;
+}
+
+export interface StudentFeeTotals {
+  feeAmount: number;
+  paidAmount: number;
+  dueAmount: number;
 }
 
 export interface StudentFeePagination {
@@ -51,44 +74,17 @@ export interface StudentFeeData {
   year: number;
   months: StudentFeeMonth[];
   unpaidMonths: StudentFeeMonth[];
-  totals: {
-    paidAmount: number;
-    dueAmount: number;
-  };
+  totals: StudentFeeTotals;
   payments: StudentFeePayment[];
   paymentPagination: StudentFeePagination;
 }
 
-export interface StudentReceipt {
-  _id: string;
-  receiptNumber: string;
-  studentId: string;
-  amount: number;
-  paymentDate: string;
-  method: string;
-  referenceNumber?: string;
-  allocations: StudentFeePaymentAllocation[];
-  createdAt?: string;
-
-  student: {
-    _id: string;
-    studentId?: string;
-    name: string;
-    fatherName?: string;
-    phone?: string;
-    className?: string;
-    admissionDate?: string;
-    monthlyFees?: number | null;
-  };
-
-  receiptDetails: {
-    totalDue: number;
-    totalPaid: number;
-    remainingDue: number;
-  };
+export interface StudentMonthDetails {
+  month: StudentFeeMonth;
+  installments: StudentFeePayment[];
 }
 
-export const FEE_MONTHS = [
+export const MONTHS = [
   "January",
   "February",
   "March",
@@ -103,32 +99,60 @@ export const FEE_MONTHS = [
   "December",
 ];
 
-export function formatMoney(value: number | null | undefined) {
-  return `₹${Number(value ?? 0).toLocaleString("en-IN", {
+export const money = (value?: number | null) =>
+  `₹${Number(value ?? 0).toLocaleString("en-IN", {
     maximumFractionDigits: 2,
   })}`;
-}
 
 export function formatFeeDate(value?: string) {
   if (!value) return "—";
 
-  const dateValue = value.slice(0, 10);
-  const parts = dateValue.split("-").map(Number);
+  const datePart = value.slice(0, 10);
+  const parts = datePart.split("-").map(Number);
 
-  if (
-    parts.length !== 3 ||
-    parts.some((part) => !Number.isFinite(part))
-  ) {
+  if (parts.length !== 3 || parts.some(Number.isNaN)) {
     return "—";
   }
 
-  return new Date(
-    parts[0],
-    parts[1] - 1,
-    parts[2]
-  ).toLocaleDateString("en-IN", {
+  return new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    },
+  );
+}
+
+export function formatFeeTime(value?: string) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+}
+
+export function formatFeeDateTime(value?: string) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
   });
 }
