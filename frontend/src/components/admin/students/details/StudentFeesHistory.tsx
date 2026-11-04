@@ -61,7 +61,6 @@ export default function StudentFeesHistory({
   year,
   yearOptions,
   feeMonth,
-  paymentPage,
   sectionError,
   buttonClass,
   tableClass,

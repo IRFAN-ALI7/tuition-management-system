@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -49,11 +49,13 @@ function formatDateTime(value?: string) {
 }
 
 export default function ReceiptModal({ payment, onClose }: Props) {
-  const [mounted, setMounted] = useState(false);
+ const mounted = useSyncExternalStore(
+  () => () => {},
+  () => true,
+  () => false
+);
 
   useEffect(() => {
-    setMounted(true);
-
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         onClose();

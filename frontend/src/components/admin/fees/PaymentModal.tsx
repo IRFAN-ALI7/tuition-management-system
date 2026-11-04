@@ -115,14 +115,11 @@ export default function PaymentModal({
   }, [search, initialStudentId]);
 
   useEffect(() => {
-    if (!studentId) {
-      setDetails(null);
-      setLoadingStudent(false);
-      return;
-    }
+  if (!studentId) {
+    return;
+  }
 
-    let live = true;
-    setLoadingStudent(true);
+  let live = true;
 
     void feeApi(
       `/fees/students/${studentId}?year=${new Date().getFullYear()}`,

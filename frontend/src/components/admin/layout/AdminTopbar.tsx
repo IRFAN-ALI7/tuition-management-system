@@ -14,7 +14,7 @@ type Props = {
   setSection: (section: Section) => void;
   setMobileMenu: (value: boolean) => void;
   batches: Batch[];
-  api: (path: string, init?: RequestInit) => Promise<any>;
+  api: (path: string, init?: RequestInit) => Promise<unknown>;
   setStudentFilters: React.Dispatch<
     React.SetStateAction<{
       q: string;
@@ -46,11 +46,15 @@ export default function AdminTopbar({
     if (!query) return;
 
     try {
-      const result = await api(
-        `/students?q=${encodeURIComponent(query)}&page=1&limit=20`
-      );
+         const result = (await api(
+  `/students?q=${encodeURIComponent(query)}&page=1&limit=20`
+)) as {
+  pagination?: {
+    total?: number;
+  };
+};
 
-      if (result.pagination.total) {
+if (result.pagination?.total) {
         setStudentFilters((current) => ({
           ...current,
           q: query,

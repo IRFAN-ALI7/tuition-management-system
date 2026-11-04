@@ -101,7 +101,7 @@ export default function StudentEditorModal({
             </label>
 
             <label className={labelClass}>
-              Father's Name
+              Father&apos;s Name
               <input
                 className={inputClass}
                 value={draft.fatherName}

@@ -1,12 +1,11 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
-import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
-import { api, API } from "@/lib/api";
+import { api } from "@/lib/api";
 
 import useAdminAttendance from "@/components/admin/hooks/useAdminAttendance";
 import useAdminDashboard from "@/components/admin/hooks/useAdminDashboard";
@@ -37,25 +36,11 @@ import AdminPageFooter from "@/components/admin/layout/AdminPageFooter";
 import type {
   Student,
   Batch,
-  StudentSummary,
-  BatchSummary,
-  DashboardFeeSummary,
-  StudentPagination,
   StudentFilters,
-  AdminProfile,
   Section,
   BatchDraft,
   StudentEditDraft,
 } from "@/components/admin/shared/types";
-
-const todayISO = () => {
-  const d = new Date();
-
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-    2,
-    "0",
-  )}-${String(d.getDate()).padStart(2, "0")}`;
-};
 
 
 const menu: { label: Section; icon: string }[] = [
@@ -76,9 +61,8 @@ export default function Home() {
   const globalSearchRef = useRef<HTMLInputElement>(null);
 
 
-  const {
+ const {
   batches,
-  setBatches,
   batchSummary,
   refreshBatches,
 } = useAdminBatches();
@@ -187,7 +171,7 @@ const {
   setNotice,
 });
 
-        const { loadWorkspace } = useAdminWorkspace({
+  useAdminWorkspace({
   batchId,
   refreshBatches,
   refreshStudents,
@@ -279,7 +263,7 @@ const {
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [date, batchId, authenticated]);
+  }, [date, batchId, authenticated, loadAttendance]);
 
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
@@ -416,31 +400,6 @@ const {
   };
 
   const openStudentCreation = () => router.push("/admin/students/new");
-
-  const openStudentEditor = (student: Student) => {
-    const linkedBatchId =
-      typeof student.batchId === "object" && student.batchId
-        ? student.batchId._id
-        : student.batchId ?? "";
-
-    setStudentActionError("");
-    setStudentEditing(student);
-
-    setStudentDraft({
-      name: student.name,
-      fatherName: student.fatherName ?? "",
-      phone: student.phone,
-      address: student.address ?? "",
-      gender: student.gender ?? "",
-      className: student.className ?? "",
-      batchId: linkedBatchId,
-      admissionDate:
-        student.admissionDate ?? student.createdAt?.slice(0, 10) ?? "",
-      monthlyFees:
-        student.monthlyFees == null ? "" : String(student.monthlyFees),
-    });
-  };
-
   const saveStudentEdit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 

@@ -5,12 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 
 import {
-  MONTHS,
   type BatchOption,
   type Exam,
   type ExamDetail,
   type ExamDraft,
-  type ExamResultRow,
   type HistoryResult,
 } from "./examTypes";
 

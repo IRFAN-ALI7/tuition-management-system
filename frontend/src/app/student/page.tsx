@@ -1,197 +1,301 @@
 
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import ThemeToggle from "@/components/ThemeToggle";
-import { useTheme } from "@/components/ThemeProvider";
+import { api } from "@/lib/api";
+import type { Student, StudentBatch } from "@/types/student";
+import PageHeader from "@/components/student/ui/PageHeader";
+import StatCard from "@/components/student/ui/StatCard";
+import SectionCard from "@/components/student/ui/SectionCard";
+import LoadingState from "@/components/student/ui/LoadingState";
+import EmptyState from "@/components/student/ui/EmptyState";
+import StatusBadge from "@/components/student/ui/StatusBadge";
+import AttendanceOverview from "@/components/student/dashboard/AttendanceOverview";
+import RecentResults, {
+  type StudentResult,
+} from "@/components/student/dashboard/RecentResults";
+import RecentNotices, {
+  type StudentNotice,
+} from "@/components/student/dashboard/RecentNotices";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+interface DashboardAttendance {
+  present?: number;
+  absent?: number;
+  total?: number;
+  totalClasses?: number;
+  percentage?: number;
+  attendancePercentage?: number;
+}
 
-export default function StudentHomePage() {
-  const router = useRouter();
-  const [message, setMessage] = useState("Checking your sign-in…");
-  const [authenticated, setAuthenticated] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const { activateRole, clearRole } = useTheme();
+interface CurrentFee {
+  status?: string;
+  amount?: number;
+  feeAmount?: number;
+  paidAmount?: number;
+  remainingAmount?: number;
+  month?: number;
+  year?: number;
+}
+
+interface DashboardData {
+  student?: Student;
+  batch?: StudentBatch | null;
+  attendance?: DashboardAttendance;
+  currentFee?: CurrentFee | null;
+  latestResults?: StudentResult[];
+  notices?: StudentNotice[];
+}
+
+function formatTime(value?: string) {
+  if (!value) return "—";
+
+  const [hour, minute] = value.split(":").map(Number);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+
+  const date = new Date();
+  date.setHours(hour, minute, 0, 0);
+
+  return date.toLocaleTimeString("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+function money(value?: number) {
+  return `₹${Number(value ?? 0).toLocaleString("en-IN")}`;
+}
+
+function monthLabel(month?: number, year?: number) {
+  if (!month) return year ? String(year) : "Current Month";
+  return `${new Date(2000, month - 1, 1).toLocaleString("en-IN", {
+    month: "long",
+  })} ${year ?? ""}`.trim();
+}
+
+export default function StudentDashboardPage() {
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    let active = true;
+    let cancelled = false;
 
-        void fetch(`${API}/auth/session`, {
-  method: "GET",
-  credentials: "include",
-  cache: "no-store",
-  headers: {
-    "Cache-Control": "no-cache",
-  },
-})
-  .then(async (response) =>
-    response.ok ? response.json() : null
-  )
-      .then((session) => {
-        if (!active) return;
+    async function loadDashboard() {
+      try {
+        const response = await api("/student/dashboard");
+        if (cancelled) return;
 
-        if (!session) {
-          clearRole();
-          router.replace("/student/login");
-          return;
+        setDashboard({
+          student: response.student ?? response.data?.student,
+          batch: response.batch ?? response.data?.batch ?? null,
+          attendance: response.attendance ?? response.data?.attendance,
+          currentFee: response.currentFee ?? response.data?.currentFee ?? null,
+          latestResults:
+            response.latestResults ?? response.data?.latestResults ?? [],
+          notices: response.notices ?? response.data?.notices ?? [],
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Unable to load your dashboard."
+          );
         }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
 
-        if (session.user?.role !== "student") {
-          clearRole();
-          router.replace("/admin");
-          return;
-        }
-
-        activateRole("student");
-        setAuthenticated(true);
-        setMessage(
-          "Your student sign-in is active. Student learning pages will appear here."
-        );
-      })
-      .catch(() => {
-        if (active) {
-          clearRole();
-          router.replace("/student/login");
-        }
-      });
+    void loadDashboard();
 
     return () => {
-      active = false;
+      cancelled = true;
     };
-  }, [router, activateRole, clearRole]);
+  }, []);
 
-  const handleLogout = async () => {
-  try {
-    await fetch(`${API}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-    });
-  } catch (error) {
-    console.error("Student logout failed:", error);
-  } finally {
-    clearRole();
-    router.replace("/student/login");
-    router.refresh();
+  if (loading) {
+    return <LoadingState message="Loading your dashboard..." fullPage />;
   }
-};
 
-  const brandClass =
-    "flex items-center gap-[17px] text-inherit no-underline [&>span:last-child]:grid [&>span:last-child]:gap-[3px] [&_strong]:text-[29px] [&_strong]:leading-[1.15] [&_strong]:tracking-[-0.8px] [&_strong]:text-[#101a4a] [&_small]:mt-0.5 [&_small]:text-[13px] [&_small]:tracking-[2px] [&_small]:text-[#6d70ae] max-[560px]:[&_strong]:text-[19px] max-[560px]:[&_small]:text-[9px] dark:[&_strong]:text-[#f0eef8]";
+  const student = dashboard?.student;
+  const batch = dashboard?.batch;
+  const attendance = dashboard?.attendance ?? {};
+  const fee = dashboard?.currentFee;
 
-  const logoClass =
-    "grid size-[60px] shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#6c45f1] to-[#815bf1] text-[34px] text-white max-[560px]:size-10 max-[560px]:text-[23px]";
-
-  const headerButtonClass =
-    "inline-flex min-h-11 items-center rounded-xl border border-[#e9e3fa] bg-[#ffffffd9] px-[15px] text-sm text-[#6252b5] dark:border-[#403a55] dark:bg-[#292538] dark:text-[#c2b3ff] max-[560px]:min-h-10 max-[560px]:px-[11px] max-[560px]:text-[13px]";
+  const present = Number(attendance.present ?? 0);
+  const absent = Number(attendance.absent ?? 0);
+  const total = Number(
+    attendance.total ?? attendance.totalClasses ?? present + absent
+  );
+  const attendancePercentage = Number(
+    attendance.percentage ?? attendance.attendancePercentage ?? 0
+  );
 
   return (
-    <main className="flex min-h-[100svh] flex-col bg-[radial-gradient(ellipse_at_50%_44%,#f1edff_0%,#f8f6ff_37%,transparent_72%),linear-gradient(135deg,#fbfaff_0%,#f8f6ff_56%,#f2edff_100%)] px-[clamp(18px,7vw,112px)] text-[#111b49] dark:bg-[radial-gradient(ellipse_at_50%_44%,#29233d_0%,#201d2d_42%,transparent_76%),linear-gradient(135deg,#191722,#211e30_60%,#29213b)] dark:text-[#f0eef8] max-[560px]:px-[18px]">
-      <header className="mx-auto flex min-h-[94px] w-full max-w-[1440px] items-center justify-between border-b border-[#e9e3fa] dark:border-[#393448] max-[560px]:min-h-[76px]">
-        <Link className={brandClass} href="/">
-          <span className={logoClass}>✳</span>
-          <span>
-            <strong>Udaan</strong>
-            <small>LEARNING CENTRE</small>
-          </span>
-        </Link>
+    <div className="space-y-6">
+      <PageHeader
+        title={`Welcome${student?.name ? `, ${student.name}` : " Back"}!`}
+        description="Here is an overview of your tuition activity."
+      />
 
-        <div className="flex items-center gap-3">
-          {authenticated && (
-            <button
-              className={headerButtonClass}
-              type="button"
-              onClick={() =>
-                setSettingsOpen((current) => !current)
-              }
-            >
-              {settingsOpen ? "Dashboard" : "Settings"}
-            </button>
-          )}
-             {authenticated && (
-                  <button
-                  className={headerButtonClass}
-                  type="button"
-                  onClick={handleLogout}
-                >
-               Logout
-            </button>
-              )}
-          <Link className={headerButtonClass} href="/">
-            Home
-          </Link>
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
+          {error}
         </div>
-      </header>
+      )}
 
-      <section className="mx-auto my-[clamp(36px,7vh,76px)] w-full max-w-[480px] rounded-[22px] border border-[#e9e4f5] bg-[#fffffff2] p-[clamp(28px,5vw,42px)] text-center text-[#111b49] shadow-[0_20px_60px_#48378314,0_3px_12px_#48378308] dark:border-[#3c374e] dark:bg-[#252231f5] dark:text-[#f0eef8] dark:shadow-[0_22px_64px_#09081166] max-[560px]:my-[34px] max-[560px]:rounded-[19px] max-[560px]:px-[22px] max-[560px]:py-[27px]">
-        {settingsOpen && authenticated ? (
-          <>
-            <span className="mx-auto mb-[21px] grid size-[54px] place-items-center rounded-2xl bg-[#eaf7ef] text-[23px] text-[#289f62] dark:bg-[#233b30] dark:text-[#8cddb0]">
-              ⚙
-            </span>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Attendance"
+          value={`${attendancePercentage.toFixed(1)}%`}
+          description={`${present} present out of ${total} classes`}
+          color="blue"
+        />
 
-            <div className="text-[11px] tracking-[1.4px] text-[#7869b9]">
-              STUDENT / PARENT PREFERENCES
-            </div>
+        <StatCard
+          title="Present Classes"
+          value={present}
+          description="Total classes attended"
+          color="green"
+        />
 
-            <h1 className="mt-[10px] mb-2 text-[clamp(27px,5vw,32px)] leading-[1.18] tracking-[-1px] text-[#111b49] dark:text-[#f4f1ff]">
-              Settings
-            </h1>
+        <StatCard
+          title="Absent Classes"
+          value={absent}
+          description="Total classes missed"
+          color="red"
+        />
 
-            <p className="mt-0 mb-[25px] text-[15px] leading-[1.6] text-[#777892] dark:text-[#bbb6ce]">
-              Personalize the Student Dashboard appearance. This preference is saved for your student account on this device.
-            </p>
+        <StatCard
+          title="Current Fee"
+          value={fee?.status || "Not Available"}
+          description={
+            fee
+              ? `${monthLabel(fee.month, fee.year)} · ${money(
+                  fee.remainingAmount ?? fee.feeAmount ?? fee.amount
+                )}`
+              : "Fee information"
+          }
+          color="amber"
+        />
+      </div>
 
-            <article className="mt-6 flex items-center justify-between gap-[18px] rounded-[15px] border border-[#ece7fa] bg-[#fbfaff] p-[18px] text-left dark:border-[#403b50] dark:bg-[#2a2738] max-[560px]:items-start max-[560px]:p-[15px]">
-              <div className="grid gap-[5px]">
-                <strong className="text-[15px] text-[#242747] dark:text-[#f0eef8]">
-                  Dark mode
-                </strong>
-                <small className="text-[13px] leading-[1.5] text-[#777892] dark:text-[#aaa6bb]">
-                  Use the dark Udaan theme across student pages.
-                </small>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <AttendanceOverview
+          present={present}
+          absent={absent}
+          total={total}
+          percentage={attendancePercentage}
+        />
+
+        <SectionCard
+          title="My Batch"
+          description="Your assigned tuition schedule."
+        >
+          {batch ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Batch Name
+                  </p>
+                  <h3 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                    {batch.name}
+                  </h3>
+                </div>
+                <StatusBadge
+                  status={batch.active === false ? "Inactive" : "Active"}
+                />
               </div>
-              <ThemeToggle />
-            </article>
-          </>
-        ) : (
-          <>
-            <span className="mx-auto mb-[21px] grid size-[54px] place-items-center rounded-2xl bg-[#eaf7ef] text-[23px] text-[#289f62] dark:bg-[#233b30] dark:text-[#8cddb0]">
-              ♙
-            </span>
 
-            <div className="text-[11px] tracking-[1.4px] text-[#7869b9]">
-              STUDENT / PARENT PORTAL
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Start Time
+                  </p>
+                  <p className="mt-1 font-semibold text-gray-900 dark:text-white">
+                    {formatTime(batch.startTime)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    End Time
+                  </p>
+                  <p className="mt-1 font-semibold text-gray-900 dark:text-white">
+                    {formatTime(batch.endTime)}
+                  </p>
+                </div>
+              </div>
             </div>
+          ) : (
+            <EmptyState
+              title="No batch assigned"
+              description="Please contact your Tuition Admin for batch details."
+            />
+          )}
+        </SectionCard>
+      </div>
 
-            <h1 className="mt-[10px] mb-2 text-[clamp(27px,5vw,32px)] leading-[1.18] tracking-[-1px] text-[#111b49] dark:text-[#f4f1ff]">
-              Welcome to Udaan
-            </h1>
+      <SectionCard
+        title="Latest Exam Results"
+        description="Your recently published examination results."
+      >
+        <RecentResults results={dashboard?.latestResults ?? []} />
+      </SectionCard>
 
-            <p className="mt-0 mb-[25px] text-[15px] leading-[1.6] text-[#777892] dark:text-[#bbb6ce]">
-              {message}
+      <SectionCard
+        title="Recent Notices"
+        description="Important announcements from your Tuition Admin."
+      >
+        <RecentNotices notices={dashboard?.notices ?? []} />
+      </SectionCard>
+
+      <SectionCard title="Student Information">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Student Name
             </p>
+            <p className="mt-1 font-medium text-gray-900 dark:text-white">
+              {student?.name || "—"}
+            </p>
+          </div>
 
-            <Link
-              className="relative mt-[3px] flex h-[54px] w-full items-center justify-center rounded-xl bg-[linear-gradient(105deg,#6945ed,#805cf2)] text-[15px] text-white no-underline shadow-[0_8px_18px_#6c4ce32b]"
-              href="/"
-            >
-              Return to home
-              <b className="absolute top-[14px] right-[18px] text-[19px]">
-                →
-              </b>
-            </Link>
-          </>
-        )}
-      </section>
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Father&apos;s Name
+            </p>
+            <p className="mt-1 font-medium text-gray-900 dark:text-white">
+              {student?.fatherName || "—"}
+            </p>
+          </div>
 
-      <footer className="mx-auto flex min-h-[62px] w-full max-w-[1440px] items-center justify-between border-t border-[#e9e3fa] text-xs text-[#9290a7] dark:border-[#393448] dark:text-[#aaa5bb] max-[560px]:min-h-[58px] max-[560px]:gap-3 max-[560px]:text-[11px]">
-        <span>© Udaan Learning Centre</span>
-        <span>Curiosity today. Confidence tomorrow.</span>
-      </footer>
-    </main>
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Mobile Number
+            </p>
+            <p className="mt-1 font-medium text-gray-900 dark:text-white">
+              {student?.phone || "—"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Class</p>
+            <p className="mt-1 font-medium text-gray-900 dark:text-white">
+              {student?.className || "—"}
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Address</p>
+            <p className="mt-1 font-medium text-gray-900 dark:text-white">
+              {student?.address || "—"}
+            </p>
+          </div>
+        </div>
+      </SectionCard>
+    </div>
   );
 }

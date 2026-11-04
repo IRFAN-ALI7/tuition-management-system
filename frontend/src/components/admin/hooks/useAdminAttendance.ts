@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
 import { api } from "@/lib/api";
@@ -35,10 +35,10 @@ export default function useAdminAttendance({
     ? Math.round((present / students.length) * 100)
     : 0;
 
-  const loadAttendance = async (
+  const loadAttendance = useCallback(async (
     id: string,
     selectedDate: string,
-  ) => {
+    ) => {
     if (!id) {
       setStudents([]);
       setSaved(false);
@@ -75,7 +75,7 @@ export default function useAdminAttendance({
     } finally {
       setAttendanceLoading(false);
     }
-  };
+   }, [setPageError]);
 
   const saveAttendance = async () => {
     if (!selectedBatch?.active || !students.length || attendanceSaving) {
