@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { StudentBatch } from "@/types/student";
 
@@ -325,37 +325,50 @@ function NoBatchState() {
 /* Main page */
 
 export default function StudentBatchPage() {
-  const [batch, setBatch] = useState<StudentBatch | null>(null);
+    const [batch, setBatch] = useState<StudentBatch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const loadBatch = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await api("/student/batch");
-
-      const result =
-        response.batch ??
-        response.data?.batch ??
-        (response.data?._id ? response.data : null);
-
-      setBatch(result ?? null);
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Unable to load your batch details."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadBatch() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const response = await api("/student/batch");
+
+        if (cancelled) return;
+
+        const result =
+          response.batch ??
+          response.data?.batch ??
+          (response.data?._id ? response.data : null);
+
+        setBatch(result ?? null);
+      } catch (caught) {
+        if (cancelled) return;
+
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "Unable to load your batch details."
+        );
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
     void loadBatch();
-  }, [loadBatch]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [retryKey]);
 
   if (loading) {
     return <LoadingBatch />;
@@ -396,7 +409,7 @@ export default function StudentBatchPage() {
 
           <button
             type="button"
-            onClick={() => void loadBatch()}
+            onClick={() => setRetryKey((value) => value + 1)}
             className="inline-flex w-fit items-center gap-2 rounded-lg bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700"
           >
             <Icon name="refresh" className="h-4 w-4" />

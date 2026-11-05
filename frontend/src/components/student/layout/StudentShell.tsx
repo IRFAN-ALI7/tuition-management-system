@@ -124,9 +124,6 @@ export default function StudentShell({ children }: StudentShellProps) {
     };
   }, [pathname, activateRole, clearRole, router]);
 
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
 
   const handleLogout = useCallback(async () => {
     try {

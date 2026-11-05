@@ -334,11 +334,8 @@ export default function StudentDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
-  const [today, setToday] = useState<Date | null>(null);
+  const [today] = useState(() => new Date());
 
-  useEffect(() => {
-    setToday(new Date());
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

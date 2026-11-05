@@ -97,25 +97,18 @@ export default function RoleLogin({ role }: { role: Role }) {
 
   const admin = role === "admin";
 
-  const clearAdminForm = () => {
-    if (!admin) return;
 
-    setIdentifier("");
-    setPassword("");
-    setError("");
-    setShowPassword(false);
-    setLoading(false);
-  };
-
-  useEffect(() => {
+     useEffect(() => {
     clearRole();
 
     if (!admin) return;
 
-    clearAdminForm();
-
     const handlePageShow = () => {
-      clearAdminForm();
+      setIdentifier("");
+      setPassword("");
+      setError("");
+      setShowPassword(false);
+      setLoading(false);
     };
 
     window.addEventListener("pageshow", handlePageShow);

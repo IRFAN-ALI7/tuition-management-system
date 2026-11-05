@@ -1,6 +1,7 @@
 
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 
@@ -676,11 +677,14 @@ export function NoticesManagement({
 <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
   <div className="flex min-w-0 items-center gap-3">
     {selectedStudent.profilePhoto ? (
-      <img
-        src={selectedStudent.profilePhoto}
-        alt={`${selectedStudent.name} profile`}
-        className="h-12 w-12 shrink-0 rounded-full border border-emerald-200 object-cover dark:border-emerald-800"
-      />
+      <Image
+  src={selectedStudent.profilePhoto}
+  alt={`${selectedStudent.name} profile`}
+  width={48}
+  height={48}
+  unoptimized
+  className="h-12 w-12 shrink-0 rounded-full border border-emerald-200 object-cover dark:border-emerald-800"
+/>
     ) : (
       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200 text-sm font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
         {selectedStudent.name
@@ -757,11 +761,14 @@ export function NoticesManagement({
     >
       <span className="flex min-w-0 items-center gap-3">
         {student.profilePhoto ? (
-          <img
+          <Image
             src={student.profilePhoto}
-            alt={`${student.name} profile`}
-            className="h-11 w-11 shrink-0 rounded-full border border-slate-200 object-cover dark:border-slate-700"
-          />
+          alt={`${student.name} profile`}
+           width={44}
+            height={44}
+              unoptimized
+                className="h-11 w-11 shrink-0 rounded-full border border-slate-200 object-cover dark:border-slate-700"
+            />
         ) : (
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
             {initials || "S"}

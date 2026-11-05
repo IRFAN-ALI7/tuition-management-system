@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { Dispatch, SetStateAction } from "react";
 import type { ExamDetail, ExamResultRow } from "./examTypes";
 
@@ -161,10 +162,13 @@ export function ExamResults({
                     <td className={cellClass}>
                       <div className="flex min-w-[180px] items-center gap-3">
                         {row.student.profilePhoto ? (
-                          <img
-                            src={row.student.profilePhoto}
-                            alt={`${row.student.name} profile`}
-                            className="h-10 w-10 shrink-0 rounded-full border border-slate-200 object-cover dark:border-slate-700"
+                           <Image
+                             src={row.student.profilePhoto}
+                             alt={`${row.student.name} profile`}
+                            width={40}
+                         height={40}
+                         unoptimized
+                           className="h-10 w-10 shrink-0 rounded-full border border-slate-200 object-cover dark:border-slate-700"
                           />
                         ) : (
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">

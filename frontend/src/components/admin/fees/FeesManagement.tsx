@@ -249,9 +249,6 @@ export function FeesManagement({
   const detailValueClass =
     "mt-1 break-words text-sm font-semibold text-slate-800";
 
-  const closeButtonClass =
-    "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-900";
-
   return (
     <section className="min-w-0 space-y-6">
       {/* Header */}

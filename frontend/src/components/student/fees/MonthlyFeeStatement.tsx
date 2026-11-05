@@ -1,7 +1,6 @@
 
 import {
   type StudentFeeMonth,
-  type StudentFeePayment,
   type StudentMonthDetails,
   money,
   MONTHS,
@@ -72,7 +71,7 @@ export default function MonthlyFeeStatement({
 
           <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
             Check the paid and remaining amount for every month of {year}.
-            Select View to see the month's complete details.
+            Select View to see the month&apos;s complete details.
           </p>
         </div>
 

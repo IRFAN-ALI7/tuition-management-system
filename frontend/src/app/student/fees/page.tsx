@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
 import PageHeader from "@/components/student/ui/PageHeader";
@@ -40,70 +40,97 @@ export default function StudentFeesPage() {
   const [receipt, setReceipt] = useState<StudentFeePayment | null>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
 
-  const loadFees = useCallback(async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const params = new URLSearchParams({
-        year: String(year),
-        paymentPage: String(paymentPage),
-        paymentLimit: "10",
-      });
-
-      const response = (await api(
-        `/student/fees?${params.toString()}`,
-      )) as StudentFeeData;
-
-      setData(response);
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Unable to load fee details.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [year, paymentPage]);
-
-  const loadMonthDetails = useCallback(async () => {
-    if (selectedMonth === null) {
-      setMonthDetails(null);
-      setMonthError("");
-      setMonthLoading(false);
-      return;
-    }
-
-    setMonthLoading(true);
-    setMonthError("");
-
-    try {
-      const response = (await api(
-        `/student/fees/months/${year}/${selectedMonth}`,
-      )) as StudentMonthDetails;
-
-      setMonthDetails(response);
-    } catch (caught) {
-      setMonthDetails(null);
-
-      setMonthError(
-        caught instanceof Error
-          ? caught.message
-          : "Unable to load this month's details.",
-      );
-    } finally {
-      setMonthLoading(false);
-    }
-  }, [year, selectedMonth]);
+       const [feeRetryKey, setFeeRetryKey] = useState(0);
+  const [monthRetryKey, setMonthRetryKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadFees() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const params = new URLSearchParams({
+          year: String(year),
+          paymentPage: String(paymentPage),
+          paymentLimit: "10",
+        });
+
+        const response = (await api(
+          `/student/fees?${params.toString()}`,
+        )) as StudentFeeData;
+
+        if (cancelled) return;
+
+        setData(response);
+      } catch (caught) {
+        if (cancelled) return;
+
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "Unable to load fee details.",
+        );
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
     void loadFees();
-  }, [loadFees]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [year, paymentPage, feeRetryKey]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadMonthDetails() {
+      if (selectedMonth === null) {
+        setMonthDetails(null);
+        setMonthError("");
+        setMonthLoading(false);
+        return;
+      }
+
+      setMonthLoading(true);
+      setMonthError("");
+
+      try {
+        const response = (await api(
+          `/student/fees/months/${year}/${selectedMonth}`,
+        )) as StudentMonthDetails;
+
+        if (cancelled) return;
+
+        setMonthDetails(response);
+      } catch (caught) {
+        if (cancelled) return;
+
+        setMonthDetails(null);
+
+        setMonthError(
+          caught instanceof Error
+            ? caught.message
+            : "Unable to load this month's details.",
+        );
+      } finally {
+        if (!cancelled) {
+          setMonthLoading(false);
+        }
+      }
+    }
+
     void loadMonthDetails();
-  }, [loadMonthDetails]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [year, selectedMonth, monthRetryKey]);
 
   function handleYearChange(nextYear: number) {
     setYear(nextYear);
@@ -159,7 +186,7 @@ export default function StudentFeesPage() {
 
           <button
             type="button"
-            onClick={() => void loadFees()}
+            onClick={() => setFeeRetryKey((value) => value + 1)}
             className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white"
           >
             Try Again
@@ -239,7 +266,7 @@ export default function StudentFeesPage() {
         monthDetails={monthDetails}
         monthLoading={monthLoading}
         monthError={monthError}
-        onRetry={() => void loadMonthDetails()}
+        onRetry={() => setMonthRetryKey((value) => value + 1)}
         onReceipt={handleReceipt}
       />
 

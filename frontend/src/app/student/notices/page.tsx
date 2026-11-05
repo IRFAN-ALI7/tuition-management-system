@@ -83,11 +83,11 @@ export default function StudentNoticesPage() {
           ...response.pagination,
         });
 
-        setSelectedNotice(
-          nextNotices.find(
-            (notice) => notice._id === selectedNotice?._id
-          ) ?? nextNotices[0] ?? null
-        );
+         setSelectedNotice((currentNotice) =>
+           nextNotices.find(
+            (notice) => notice._id === currentNotice?._id
+             ) ?? nextNotices[0] ?? null
+            );
 
         setMobileOpen(false);
       } catch (caught) {

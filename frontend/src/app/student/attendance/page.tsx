@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/student/ui/PageHeader";
 import { api } from "@/lib/api";
 
@@ -644,51 +644,67 @@ export default function StudentAttendancePage() {
 
   /* Load date-wise attendance records with server pagination */
 
-  const loadMonthDetails = useCallback(async () => {
-    setMonthLoading(true);
-    setMonthError("");
-
-    try {
-      const response: AttendanceResponse = await api(
-        `/student/attendance?year=${selectedYear}&month=${selectedMonth}&page=${recordsPage}&limit=${PAGE_SIZE}`
-      );
-
-      setRecords(response.records ?? []);
-
-      const serverPagination = response.pagination;
-
-      if (serverPagination) {
-        const total = Number(serverPagination.total ?? 0);
-        const limit = Number(serverPagination.limit ?? PAGE_SIZE);
-
-        setPagination({
-          page: Number(serverPagination.page ?? recordsPage),
-          limit,
-          total,
-          totalPages: Number(
-            serverPagination.totalPages ??
-              Math.max(1, Math.ceil(total / limit))
-          ),
-        });
-      } else {
-        setPagination(EMPTY_PAGINATION);
-      }
-    } catch (error) {
-      setRecords([]);
-      setPagination(EMPTY_PAGINATION);
-      setMonthError(
-        error instanceof Error
-          ? error.message
-          : "Unable to load monthly attendance details."
-      );
-    } finally {
-      setMonthLoading(false);
-    }
-  }, [selectedYear, selectedMonth, recordsPage]);
+           
+  /* Load date-wise attendance records with server pagination */
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadMonthDetails() {
+      setMonthLoading(true);
+      setMonthError("");
+
+      try {
+        const response: AttendanceResponse = await api(
+          `/student/attendance?year=${selectedYear}&month=${selectedMonth}&page=${recordsPage}&limit=${PAGE_SIZE}`
+        );
+
+        if (cancelled) return;
+
+        setRecords(response.records ?? []);
+
+        const serverPagination = response.pagination;
+
+        if (serverPagination) {
+          const total = Number(serverPagination.total ?? 0);
+          const limit = Number(serverPagination.limit ?? PAGE_SIZE);
+
+          setPagination({
+            page: Number(serverPagination.page ?? recordsPage),
+            limit,
+            total,
+            totalPages: Number(
+              serverPagination.totalPages ??
+                Math.max(1, Math.ceil(total / limit))
+            ),
+          });
+        } else {
+          setPagination(EMPTY_PAGINATION);
+        }
+      } catch (error) {
+        if (cancelled) return;
+
+        setRecords([]);
+        setPagination(EMPTY_PAGINATION);
+        setMonthError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load monthly attendance details."
+        );
+      } finally {
+        if (!cancelled) {
+          setMonthLoading(false);
+        }
+      }
+    }
+
     void loadMonthDetails();
-  }, [loadMonthDetails]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedYear, selectedMonth, recordsPage]);
+
 
   /* Derived data */
 
