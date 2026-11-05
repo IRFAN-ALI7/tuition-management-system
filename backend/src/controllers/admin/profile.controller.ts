@@ -2,8 +2,10 @@
 import type { Request, Response, NextFunction } from "express";
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import rateLimit from "express-rate-limit";
+import bcrypt from "bcryptjs";
 
 import User from "../../models/User.model";
+
 import {
   isEmailServiceConfigured,
   sendAdminEmailVerificationOtp,
@@ -11,8 +13,12 @@ import {
 
 import {
   AuthRequest,
-  requireAdmin,
 } from "../../middleware/authenticate";
+
+import {
+  uploadProfileImage,
+  deleteProfileImage,
+} from "../../services/image/imageUpload.service";
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -172,6 +178,8 @@ export async function updateAdminProfile(
   response: Response,
   next: NextFunction
 ) {
+  let uploadedPublicId = "";
+
   try {
     const auth = (request as AuthRequest).auth!;
     const { name, phone, email, image } = request.body ?? {};
@@ -194,14 +202,20 @@ export async function updateAdminProfile(
       return;
     }
 
+    if (email !== undefined && typeof email !== "string") {
+      response.status(400).json({ error: "Enter a valid email address." });
+      return;
+    }
+
     if (
       image !== undefined &&
       (typeof image !== "string" ||
         image.length > PROFILE_IMAGE_MAX_LENGTH ||
-        (image &&
+        (image !== "" &&
           !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(
             image
-          )))
+          ) &&
+          !/^https?:\/\/.+/i.test(image)))
     ) {
       response.status(400).json({
         error: "Choose a valid image under 450 KB.",
@@ -209,13 +223,8 @@ export async function updateAdminProfile(
       return;
     }
 
-    if (email !== undefined && typeof email !== "string") {
-      response.status(400).json({ error: "Enter a valid email address." });
-      return;
-    }
-
     const user = await User.findById(auth.userId).select(
-      "name mobile email emailVerified image +pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt"
+      "name mobile email emailVerified image imagePublicId +pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt"
     );
 
     if (!user) {
@@ -223,12 +232,9 @@ export async function updateAdminProfile(
       return;
     }
 
-    if (name !== undefined) user.name = name.trim();
-    if (phone !== undefined) user.mobile = phone.trim();
-    if (image !== undefined) user.image = image;
+    const oldPublicId = user.imagePublicId ?? "";
 
-    let emailChanged = false;
-
+    // Validate email and check duplicates BEFORE uploading an image.
     if (email !== undefined) {
       const normalizedEmail = email.trim().toLowerCase();
 
@@ -238,18 +244,67 @@ export async function updateAdminProfile(
       }
 
       if (normalizedEmail !== user.email || !user.emailVerified) {
-        if (
-          await User.exists({
-            email: normalizedEmail,
-            _id: { $ne: user._id },
-          })
-        ) {
+        const existingUser = await User.exists({
+          email: normalizedEmail,
+          _id: { $ne: user._id },
+        });
+
+        if (existingUser) {
           response.status(409).json({
             error: "That email address is already in use.",
           });
           return;
         }
+      }
+    }
 
+    let nextImage = user.image ?? "";
+    let nextImagePublicId = oldPublicId;
+
+    // Handle profile image only after all email checks have passed.
+    if (image !== undefined) {
+      if (image === "") {
+        nextImage = "";
+        nextImagePublicId = "";
+      } else if (image.startsWith("data:image/")) {
+        const uploadResult = await uploadProfileImage({
+          file: image,
+          type: "admin",
+        });
+
+        nextImage = uploadResult.url;
+        nextImagePublicId = uploadResult.publicId;
+        uploadedPublicId = uploadResult.publicId;
+      } else if (image === user.image) {
+        // Existing image URL: keep its Cloudinary public ID.
+        nextImage = user.image ?? "";
+        nextImagePublicId = oldPublicId;
+      } else {
+        // External URL: it is not managed by our Cloudinary account.
+        nextImage = image;
+        nextImagePublicId = "";
+      }
+    }
+
+    if (name !== undefined) {
+      user.name = name.trim();
+    }
+
+    if (phone !== undefined) {
+      user.mobile = phone.trim();
+    }
+
+    if (image !== undefined) {
+      user.image = nextImage;
+      user.imagePublicId = nextImagePublicId;
+    }
+
+    let emailChanged = false;
+
+    if (email !== undefined) {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      if (normalizedEmail !== user.email || !user.emailVerified) {
         if (normalizedEmail !== user.pendingEmail) {
           user.pendingEmail = normalizedEmail;
           user.emailOtpHash = undefined;
@@ -263,6 +318,22 @@ export async function updateAdminProfile(
 
     await user.save();
 
+    // Database save succeeded. The new Cloudinary image is now in use.
+    uploadedPublicId = "";
+
+    // Delete the previous Cloudinary image only after successful save.
+    if (
+      image !== undefined &&
+      oldPublicId &&
+      oldPublicId !== nextImagePublicId
+    ) {
+      try {
+        await deleteProfileImage(oldPublicId);
+      } catch (deleteError) {
+        console.error("Could not delete old admin profile image:", deleteError);
+      }
+    }
+
     if (emailChanged) {
       await issueProfileEmailOtp(user.id, response, true);
       return;
@@ -270,6 +341,15 @@ export async function updateAdminProfile(
 
     response.json({ profile: profileResponse(user) });
   } catch (error) {
+    // If saving failed, clean up the newly uploaded image.
+    if (uploadedPublicId) {
+      try {
+        await deleteProfileImage(uploadedPublicId);
+      } catch (deleteError) {
+        console.error("Could not clean up uploaded admin profile image:", deleteError);
+      }
+    }
+
     if (
       typeof error === "object" &&
       error !== null &&
@@ -425,5 +505,87 @@ export async function verifyAdminProfileEmail(
     next(error);
   }
 }
+
+
+export async function changeAdminPassword(
+  request: Request,
+  response: Response,
+  next: NextFunction
+) {
+  try {
+    const auth = (request as AuthRequest).auth!;
+
+    const { currentPassword, newPassword } = request.body ?? {};
+
+    if (
+      typeof currentPassword !== "string" ||
+      !currentPassword ||
+      typeof newPassword !== "string"
+    ) {
+      response.status(400).json({
+        error: "Enter your current and new password.",
+      });
+      return;
+    }
+
+    if (newPassword.length < 12 || newPassword.length > 128) {
+      response.status(400).json({
+        error: "New password must be between 12 and 128 characters.",
+      });
+      return;
+    }
+
+    if (Buffer.byteLength(newPassword, "utf8") > 72) {
+      response.status(400).json({
+        error: "Password must not exceed 72 UTF-8 bytes.",
+      });
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      response.status(400).json({
+        error: "New password must be different from current password.",
+      });
+      return;
+    }
+
+    const user = await User.findOne({
+      _id: auth.userId,
+      role: "admin",
+      active: true,
+    }).select("+passwordHash");
+
+    if (!user) {
+      response.status(404).json({
+        error: "Admin account not found.",
+      });
+      return;
+    }
+
+    const valid = await bcrypt.compare(
+      currentPassword,
+      user.passwordHash
+    );
+
+    if (!valid) {
+      response.status(400).json({
+        error: "Current password is incorrect.",
+      });
+      return;
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    user.mustChangePassword = false;
+
+    await user.save();
+
+    response.json({
+      message: "Password changed successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 
 export { profileOtpLimit };

@@ -1,8 +1,8 @@
-
 import type { Response, NextFunction } from "express";
 import type { AuthRequest } from "../../middleware/authenticate";
 
 import { getStudentByUserId } from "../../services/student/studentData.service";
+import Exam from "../../models/Exam.model";
 import ExamResult from "../../models/ExamResult.model";
 
 interface ExamHistoryItem {
@@ -39,7 +39,16 @@ export async function getStudentExamHistory(
       Math.max(1, Number(request.query.limit) || 20)
     );
 
-    const [allRecords, records, total] = await Promise.all([
+    const subject =
+      typeof request.query.subject === "string"
+        ? request.query.subject.trim()
+        : "all";
+
+    const [
+      allRecords,
+      totalExams,
+      filteredExamIds,
+    ] = await Promise.all([
       ExamResult.find({ studentId: student._id })
         .sort({ createdAt: -1 })
         .populate({
@@ -52,23 +61,16 @@ export async function getStudentExamHistory(
         })
         .lean<any[]>(),
 
-      ExamResult.find({ studentId: student._id })
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .populate({
-          path: "examId",
-          select: "name subject examDate totalMarks batchId",
-          populate: {
-            path: "batchId",
-            select: "name startTime endTime",
-          },
-        })
-        .lean<any[]>(),
-
-      ExamResult.countDocuments({
-        studentId: student._id,
+      Exam.countDocuments({
+        studentIds: student._id,
       }),
+
+      subject && subject !== "all"
+        ? Exam.distinct("_id", {
+            studentIds: student._id,
+            subject,
+          })
+        : Promise.resolve(null),
     ]);
 
     const results: ExamHistoryItem[] = allRecords.flatMap(
@@ -102,40 +104,33 @@ export async function getStudentExamHistory(
       }
     );
 
-    const subjectGroups = new Map<
-      string,
-      {
-        obtained: number;
-        total: number;
-        count: number;
-      }
-    >();
+    const resultFilter: Record<string, unknown> = {
+      studentId: student._id,
+    };
 
-    for (const result of results) {
-      const group = subjectGroups.get(result.subject) ?? {
-        obtained: 0,
-        total: 0,
-        count: 0,
+    if (filteredExamIds) {
+      resultFilter.examId = {
+        $in: filteredExamIds,
       };
-
-      group.obtained += result.obtainedMarks;
-      group.total += result.totalMarks;
-      group.count += 1;
-
-      subjectGroups.set(result.subject, group);
     }
 
-    const totalObtained = results.reduce(
-      (sum: number, result: ExamHistoryItem) =>
-        sum + result.obtainedMarks,
-      0
-    );
+    const [records, total] = await Promise.all([
+      ExamResult.find(resultFilter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate({
+          path: "examId",
+          select: "name subject examDate totalMarks batchId",
+          populate: {
+            path: "batchId",
+            select: "name startTime endTime",
+          },
+        })
+        .lean<any[]>(),
 
-    const totalPossible = results.reduce(
-      (sum: number, result: ExamHistoryItem) =>
-        sum + result.totalMarks,
-      0
-    );
+      ExamResult.countDocuments(resultFilter),
+    ]);
 
     const paginatedResults: ExamHistoryItem[] = records.flatMap(
       (record: any): ExamHistoryItem[] => {
@@ -166,6 +161,70 @@ export async function getStudentExamHistory(
       }
     );
 
+    const totalObtained = results.reduce(
+      (sum, result) => sum + result.obtainedMarks,
+      0
+    );
+
+    const totalPossible = results.reduce(
+      (sum, result) => sum + result.totalMarks,
+      0
+    );
+
+    const percentages = results.map(
+      (result) => result.percentage
+    );
+
+    const subjectGroups = new Map<
+      string,
+      {
+        obtained: number;
+        total: number;
+        count: number;
+      }
+    >();
+
+    for (const result of results) {
+      const group = subjectGroups.get(result.subject) ?? {
+        obtained: 0,
+        total: 0,
+        count: 0,
+      };
+
+      group.obtained += result.obtainedMarks;
+      group.total += result.totalMarks;
+      group.count += 1;
+
+      subjectGroups.set(result.subject, group);
+    }
+
+    const scoreBands = [
+      {
+        label: "80% and above",
+        range: "80+",
+        count: percentages.filter((value) => value >= 80).length,
+      },
+      {
+        label: "60% – 79%",
+        range: "60-79",
+        count: percentages.filter(
+          (value) => value >= 60 && value < 80
+        ).length,
+      },
+      {
+        label: "40% – 59%",
+        range: "40-59",
+        count: percentages.filter(
+          (value) => value >= 40 && value < 60
+        ).length,
+      },
+      {
+        label: "Below 40%",
+        range: "below-40",
+        count: percentages.filter((value) => value < 40).length,
+      },
+    ];
+
     response.json({
       results: paginatedResults,
 
@@ -177,7 +236,10 @@ export async function getStudentExamHistory(
       },
 
       summary: {
+        totalExams,
         examsTaken: results.length,
+        examsCompleted: results.length,
+
         totalObtained,
         totalPossible,
 
@@ -185,12 +247,20 @@ export async function getStudentExamHistory(
           ? Number(
               ((totalObtained / totalPossible) * 100).toFixed(2)
             )
-          : null,
+          : 0,
+
+        bestScore: percentages.length
+          ? Math.max(...percentages)
+          : 0,
+
+        scoreBands,
+
+        subjects: Array.from(subjectGroups.keys()).sort(),
 
         subjectAverages: Array.from(
           subjectGroups,
-          ([subject, values]) => ({
-            subject,
+          ([subjectName, values]) => ({
+            subject: subjectName,
             average: values.total
               ? Number(
                   (

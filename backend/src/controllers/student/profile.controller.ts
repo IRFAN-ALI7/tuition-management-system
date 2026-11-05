@@ -1,13 +1,14 @@
-
 import type { Response, NextFunction } from "express";
 import type { AuthRequest } from "../../middleware/authenticate";
 
 import User from "../../models/User.model";
 import { getStudentByUserId } from "../../services/student/studentData.service";
+
 import {
   uploadProfileImage,
   deleteProfileImage,
 } from "../../services/image/imageUpload.service";
+
 import { normalizePhone } from "../../utils/normalization";
 
 // GET /api/student/profile
@@ -20,7 +21,9 @@ export async function getStudentProfile(
     const student = await getStudentByUserId(request.auth!.userId);
 
     if (!student) {
-      response.status(404).json({ error: "Student profile not found." });
+      response.status(404).json({
+        error: "Student profile not found.",
+      });
       return;
     }
 
@@ -52,18 +55,25 @@ export async function updateStudentProfile(
   next: NextFunction
 ) {
   let uploadedPublicId = "";
+  let userMobileUpdated = false;
+
+  let userDocument: InstanceType<typeof User> | null = null;
+  let previousUserMobile = "";
 
   try {
     const student = await getStudentByUserId(request.auth!.userId);
 
     if (!student) {
-      response.status(404).json({ error: "Student profile not found." });
+      response.status(404).json({
+        error: "Student profile not found.",
+      });
       return;
     }
 
     const body = request.body as Record<string, unknown>;
 
     const allowedFields = ["phone", "address", "profilePhoto"];
+
     const unexpectedFields = Object.keys(body).filter(
       (field) => !allowedFields.includes(field)
     );
@@ -116,6 +126,9 @@ export async function updateStudentProfile(
       });
       return;
     }
+
+    userDocument = user;
+    previousUserMobile = user.mobile ?? "";
 
     if (nextPhone !== student.phone) {
       const existingUser = await User.exists({
@@ -179,27 +192,35 @@ export async function updateStudentProfile(
 
     const oldPublicId = student.profilePhotoPublicId ?? "";
 
+    // Update User phone first.
+    // If the Student save fails, this change will be rolled back.
+    if (user.mobile !== nextPhone) {
+      user.mobile = nextPhone;
+      await user.save();
+      userMobileUpdated = true;
+    }
+
     student.phone = nextPhone;
     student.phoneKey = normalizePhone(nextPhone);
     student.address = nextAddress;
     student.profilePhoto = nextPhoto;
     student.profilePhotoPublicId = nextPublicId;
 
+    // Save the new profile data.
     await student.save();
 
-    user.mobile = nextPhone;
-    await user.save();
+    // The new image is now referenced by the Student document.
+    uploadedPublicId = "";
 
-    if (
-      oldPublicId &&
-      oldPublicId !== nextPublicId
-    ) {
+    // Delete old image only after the database update succeeds.
+    if (oldPublicId && oldPublicId !== nextPublicId) {
       await deleteProfileImage(oldPublicId).catch((error) => {
-        console.error("Old student profile image cleanup failed:", error);
+        console.error(
+          "Old student profile image cleanup failed:",
+          error
+        );
       });
     }
-
-    uploadedPublicId = "";
 
     response.json({
       message: "Profile updated successfully.",
@@ -219,8 +240,28 @@ export async function updateStudentProfile(
       },
     });
   } catch (error) {
+    // If Student save failed after User phone update,
+    // restore the previous User phone.
+    if (userMobileUpdated && userDocument) {
+      try {
+        userDocument.mobile = previousUserMobile;
+        await userDocument.save();
+      } catch (rollbackError) {
+        console.error(
+          "Student profile phone rollback failed:",
+          rollbackError
+        );
+      }
+    }
+
+    // Delete only the new image that was not committed to the database.
     if (uploadedPublicId) {
-      await deleteProfileImage(uploadedPublicId).catch(() => undefined);
+      await deleteProfileImage(uploadedPublicId).catch((cleanupError) => {
+        console.error(
+          "New student profile image cleanup failed:",
+          cleanupError
+        );
+      });
     }
 
     next(error);

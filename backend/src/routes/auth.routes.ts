@@ -16,6 +16,7 @@ import {
   resendAdminProfileEmailOtp,
   verifyAdminProfileEmail,
   profileOtpLimit,
+  changeAdminPassword,
 } from "../controllers/admin/profile.controller";
 
 import { login, logout } from "../controllers/auth.controller";
@@ -69,6 +70,14 @@ router.patch(
   requireAuth,
   requireAdmin,
   updateAdminProfile
+);
+
+// CHANGE ADMIN PASSWORD
+router.post(
+  "/admin/change-password",
+  requireAuth,
+  requireAdmin,
+  changeAdminPassword
 );
 
 // RESEND ADMIN PROFILE EMAIL VERIFICATION OTP

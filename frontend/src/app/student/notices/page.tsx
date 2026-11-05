@@ -1,147 +1,207 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Bell } from "lucide-react";
+
 import { api } from "@/lib/api";
+
 import PageHeader from "@/components/student/ui/PageHeader";
-import SectionCard from "@/components/student/ui/SectionCard";
 import LoadingState from "@/components/student/ui/LoadingState";
-import EmptyState from "@/components/student/ui/EmptyState";
 
-interface Notice {
-  _id: string;
-  title?: string;
-  message?: string;
-  recipientType?: string;
-  createdAt?: string;
-}
+import NoticeSummaryCards from "@/components/student/notices/NoticeSummaryCards";
+import NoticeList from "@/components/student/notices/NoticeList";
+import NoticeDetails from "@/components/student/notices/NoticeDetails";
 
-function formatDate(value?: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? ""
-    : date.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
-}
+import type {
+  NoticeAudience,
+  NoticePagination,
+  NoticeSummary,
+  StudentNotice,
+  StudentNoticeResponse,
+} from "@/types/student-notices";
 
-function audienceLabel(value?: string) {
-  switch (value) {
-    case "ALL_STUDENTS":
-      return "All Students";
-    case "BATCH_WISE":
-      return "Your Batch";
-    case "SINGLE_STUDENT":
-      return "Personal Notice";
-    default:
-      return "Announcement";
-  }
-}
+import {
+  DEFAULT_NOTICE_PAGINATION,
+  DEFAULT_NOTICE_SUMMARY,
+} from "@/types/student-notices";
 
 export default function StudentNoticesPage() {
-  const [notices, setNotices] = useState<Notice[]>([]);
+  const [notices, setNotices] = useState<StudentNotice[]>([]);
+
+  const [summary, setSummary] = useState<NoticeSummary>(
+    DEFAULT_NOTICE_SUMMARY
+  );
+
+  const [pagination, setPagination] = useState<NoticePagination>(
+    DEFAULT_NOTICE_PAGINATION
+  );
+
+  const [audience, setAudience] = useState<NoticeAudience>("all");
+  const [page, setPage] = useState(1);
+
+  const [selectedNotice, setSelectedNotice] =
+    useState<StudentNotice | null>(null);
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadNotices() {
+      setLoading(true);
+      setError("");
+
       try {
-        const response = await api("/student/notices");
-        if (!cancelled) setNotices(response.notices ?? []);
-      } catch (err) {
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: "10",
+          audience,
+        });
+
+        const response = (await api(
+          `/student/notices?${params.toString()}`
+        )) as StudentNoticeResponse;
+
+        if (cancelled) return;
+
+        const nextNotices = response.notices ?? [];
+
+        setNotices(nextNotices);
+
+        setSummary({
+          ...DEFAULT_NOTICE_SUMMARY,
+          ...response.summary,
+        });
+
+        setPagination({
+          ...DEFAULT_NOTICE_PAGINATION,
+          ...response.pagination,
+        });
+
+        setSelectedNotice(
+          nextNotices.find(
+            (notice) => notice._id === selectedNotice?._id
+          ) ?? nextNotices[0] ?? null
+        );
+
+        setMobileOpen(false);
+      } catch (caught) {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : "Unable to load notices."
+            caught instanceof Error
+              ? caught.message
+              : "Unable to load notices."
           );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     void loadNotices();
+
     return () => {
       cancelled = true;
     };
+  }, [page, audience, retryCount]);
+
+  const handleAudienceChange = useCallback(
+    (nextAudience: NoticeAudience) => {
+      setAudience(nextAudience);
+      setPage(1);
+      setSelectedNotice(null);
+      setMobileOpen(false);
+    },
+    []
+  );
+
+  const handlePageChange = useCallback((nextPage: number) => {
+    setPage(nextPage);
+    setSelectedNotice(null);
+    setMobileOpen(false);
   }, []);
 
+  const handleNoticeSelect = useCallback(
+    (notice: StudentNotice) => {
+      setSelectedNotice(notice);
+      setMobileOpen(true);
+    },
+    []
+  );
+
+  const handleCloseDetails = useCallback(() => {
+    setMobileOpen(false);
+  }, []);
+
+  if (loading && notices.length === 0 && page === 1) {
+    return <LoadingState message="Loading your notices..." />;
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[1450px] space-y-5 pb-8 sm:space-y-6">
+      {/* Page heading */}
       <PageHeader
         title="Notices & Announcements"
-        description="Important updates from your Tuition Admin."
+        description="Stay updated with important notices from your Tuition Admin."
       />
 
+      {/* Error */}
       {error && (
-        <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
-          {error}
-        </p>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
+          <p className="text-sm font-bold text-red-700 dark:text-red-300">
+            Unable to load notices
+          </p>
+
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setRetryCount((value) => value + 1)}
+            className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-700"
+          >
+            Try Again
+          </button>
+        </div>
       )}
 
-      <SectionCard
-        title="All Notices"
-        description="Notices relevant to you and your batch."
-      >
-        {loading ? (
-          <LoadingState message="Loading notices..." />
-        ) : notices.length === 0 ? (
-          <EmptyState
-            title="No announcements yet"
-            description="New notices from your Tuition Admin will appear here."
-          />
-        ) : (
-          <div className="space-y-4">
-            {notices.map((notice) => (
-              <article
-                key={notice._id}
-                className="rounded-xl border border-gray-200 p-4 dark:border-gray-800"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      className="h-5 w-5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 18h.01M12 14a3 3 0 1 0-3-3m3 3v-1m0-10v2m8 6h-2M6 12H4m13.66-5.66-1.42 1.42M7.76 16.24l-1.42 1.42"
-                      />
-                    </svg>
-                  </div>
+      {/* Summary */}
+      <NoticeSummaryCards summary={summary} />
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
-                        {notice.title || "Announcement"}
-                      </h3>
-                      <span className="shrink-0 text-xs text-gray-400">
-                        {formatDate(notice.createdAt)}
-                      </span>
-                    </div>
+      {/* Loading indicator while changing filters/pages */}
+      {loading && notices.length > 0 && (
+        <div className="flex items-center gap-2 rounded-xl bg-violet-50 px-4 py-2.5 text-xs font-medium text-violet-700 dark:bg-violet-950/30 dark:text-violet-300">
+          <Bell size={14} className="animate-pulse" />
+          Updating notices...
+        </div>
+      )}
 
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-600 dark:text-gray-300">
-                      {notice.message || "No additional details."}
-                    </p>
+      {/* Main content */}
+      <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <NoticeList
+          notices={notices}
+          selectedNoticeId={selectedNotice?._id ?? null}
+          onSelect={handleNoticeSelect}
+          audience={audience}
+          onAudienceChange={handleAudienceChange}
+          pagination={pagination}
+          onPageChange={handlePageChange}
+        />
 
-                    <span className="mt-3 inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                      {audienceLabel(notice.recipientType)}
-                    </span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-      </SectionCard>
+        <NoticeDetails
+          notice={selectedNotice}
+          mobileOpen={mobileOpen}
+          onClose={handleCloseDetails}
+        />
+      </div>
     </div>
   );
 }

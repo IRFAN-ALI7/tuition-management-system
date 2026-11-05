@@ -20,9 +20,7 @@ interface StudentShellProps {
   children: ReactNode;
 }
 
-export default function StudentShell({
-  children,
-}: StudentShellProps) {
+export default function StudentShell({ children }: StudentShellProps) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -31,13 +29,13 @@ export default function StudentShell({
   const [checking, setChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [studentName, setStudentName] = useState("Student");
+  const [studentPhoto, setStudentPhoto] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // Login page is public. Skip session verification.
     if (pathname === "/student/login") {
-       return;
-     }
+      return;
+    }
 
     let mounted = true;
 
@@ -99,11 +97,11 @@ export default function StudentShell({
           const dashboard = await dashboardResponse.json();
 
           if (mounted) {
-            setStudentName(
-              dashboard.student?.name ??
-                dashboard.data?.student?.name ??
-                "Student"
-            );
+            const student =
+              dashboard.student ?? dashboard.data?.student;
+
+            setStudentName(student?.name ?? "Student");
+            setStudentPhoto(student?.profilePhoto ?? "");
           }
         }
       } catch {
@@ -126,6 +124,10 @@ export default function StudentShell({
     };
   }, [pathname, activateRole, clearRole, router]);
 
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
   const handleLogout = useCallback(async () => {
     try {
       await fetch(`${API}/auth/logout`, {
@@ -143,12 +145,10 @@ export default function StudentShell({
     }
   }, [clearRole, router]);
 
-  // Public login page.
   if (pathname === "/student/login") {
     return <>{children}</>;
   }
 
-  // Session verification screen.
   if (checking || !authorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
@@ -177,6 +177,7 @@ export default function StudentShell({
       <div className="min-h-screen lg:pl-72">
         <StudentTopbar
           name={studentName}
+          image={studentPhoto}
           onMenuClick={() => setSidebarOpen(true)}
           onLogout={handleLogout}
         />

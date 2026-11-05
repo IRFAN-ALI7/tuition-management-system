@@ -1,4 +1,3 @@
-
 import sharp from "sharp";
 import type { UploadApiResponse } from "cloudinary";
 
@@ -6,10 +5,6 @@ import {
   cloudinary,
   CLOUDINARY_FOLDERS,
 } from "../../config/cloudinary";
-
-// ---------------------------------------------
-// Types
-// ---------------------------------------------
 
 export type ProfileImageType = "admin" | "student";
 
@@ -23,24 +18,17 @@ export interface UploadedImage {
 interface UploadProfileImageOptions {
   file: Buffer;
   type: ProfileImageType;
-  oldPublicId?: string;
 }
 
-// ---------------------------------------------
-// Constants
-// ---------------------------------------------
-
-const MAX_IMAGE_SIZE = 200 * 1024; // 200 KB
-const MAX_ORIGINAL_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_IMAGE_SIZE = 200 * 1024;
+const MAX_ORIGINAL_SIZE = 10 * 1024 * 1024;
+const MAX_INPUT_PIXELS = 40_000_000;
 
 const ALLOWED_FORMATS = ["jpeg", "png", "webp"] as const;
 
-const MAX_WIDTH = 1200;
-const MIN_WIDTH = 400;
-
-// ---------------------------------------------
-// Get Cloudinary folder
-// ---------------------------------------------
+const MAX_DIMENSION = 1200;
+const RESIZE_DIMENSIONS = [1200, 1000, 800, 600, 400, 300, 200, 160];
+const WEBP_QUALITIES = [82, 76, 70, 64, 58, 52, 46, 40, 32];
 
 const getUploadFolder = (type: ProfileImageType): string => {
   return type === "admin"
@@ -48,9 +36,22 @@ const getUploadFolder = (type: ProfileImageType): string => {
     : CLOUDINARY_FOLDERS.STUDENT_PROFILE;
 };
 
-// ---------------------------------------------
-// Image compression
-// ---------------------------------------------
+const getResizeDimensions = (
+  originalWidth: number,
+  originalHeight: number
+): number[] => {
+  const longestSide = Math.max(originalWidth, originalHeight);
+  const startingDimension = Math.min(longestSide, MAX_DIMENSION);
+
+  const dimensions = [
+    startingDimension,
+    ...RESIZE_DIMENSIONS.filter(
+      (dimension) => dimension < startingDimension
+    ),
+  ];
+
+  return [...new Set(dimensions)];
+};
 
 const compressImage = async (file: Buffer): Promise<Buffer> => {
   if (!Buffer.isBuffer(file) || file.length === 0) {
@@ -61,57 +62,58 @@ const compressImage = async (file: Buffer): Promise<Buffer> => {
     throw new Error("Original image size cannot exceed 10 MB.");
   }
 
-  const image = sharp(file, {
-    failOn: "error",
-    limitInputPixels: 40000000,
-  });
+  const sharpOptions = {
+    failOn: "error" as const,
+    limitInputPixels: MAX_INPUT_PIXELS,
+  };
 
-  const metadata = await image.metadata();
+  const metadata = await sharp(file, sharpOptions).metadata();
 
-  if (!metadata.format || !ALLOWED_FORMATS.includes(
-    metadata.format as (typeof ALLOWED_FORMATS)[number]
-  )) {
+  if (
+    !metadata.format ||
+    !ALLOWED_FORMATS.includes(
+      metadata.format as (typeof ALLOWED_FORMATS)[number]
+    )
+  ) {
     throw new Error("Only JPEG, PNG and WebP images are allowed.");
   }
 
-  let width = Math.min(metadata.width || MAX_WIDTH, MAX_WIDTH);
-  let quality = 82;
+  if (!metadata.width || !metadata.height) {
+    throw new Error("Unable to read image dimensions.");
+  }
 
-  while (width >= MIN_WIDTH) {
-    const compressed = await sharp(file)
-      .rotate()
-      .resize({
-        width,
-        height: width,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .webp({
-        quality,
-        effort: 5,
-      })
-      .toBuffer();
+  const dimensions = getResizeDimensions(
+    metadata.width,
+    metadata.height
+  );
 
-    if (compressed.length <= MAX_IMAGE_SIZE) {
-      return compressed;
-    }
+  for (const dimension of dimensions) {
+    for (const quality of WEBP_QUALITIES) {
+      const compressed = await sharp(file, sharpOptions)
+        .rotate()
+        .resize({
+          width: dimension,
+          height: dimension,
+          fit: "inside",
+          withoutEnlargement: true,
+        })
+        .webp({
+          quality,
+          effort: 6,
+          smartSubsample: true,
+        })
+        .toBuffer();
 
-    if (quality > 42) {
-      quality -= 10;
-    } else {
-      width -= 100;
-      quality = 75;
+      if (compressed.length <= MAX_IMAGE_SIZE) {
+        return compressed;
+      }
     }
   }
 
   throw new Error(
-    "Image could not be compressed below 200 KB. Please choose another image."
+    "Unable to compress this image below 200 KB. Please choose a smaller image."
   );
 };
-
-// ---------------------------------------------
-// Upload buffer to Cloudinary
-// ---------------------------------------------
 
 const uploadToCloudinary = (
   file: Buffer,
@@ -145,23 +147,19 @@ const uploadToCloudinary = (
   });
 };
 
-// ---------------------------------------------
-// Common profile image upload
-// ---------------------------------------------
-
 export const uploadProfileImage = async ({
   file,
   type,
 }: UploadProfileImageOptions): Promise<UploadedImage> => {
-  const folder = getUploadFolder(type);
-
-  // Resize and compress before uploading
   const compressedImage = await compressImage(file);
 
-  // Upload compressed image
+  if (compressedImage.length > MAX_IMAGE_SIZE) {
+    throw new Error("Compressed image cannot exceed 200 KB.");
+  }
+
   const result = await uploadToCloudinary(
     compressedImage,
-    folder
+    getUploadFolder(type)
   );
 
   return {
@@ -171,10 +169,6 @@ export const uploadProfileImage = async ({
     size: result.bytes,
   };
 };
-
-// ---------------------------------------------
-// Delete old profile image
-// ---------------------------------------------
 
 export const deleteProfileImage = async (
   publicId?: string

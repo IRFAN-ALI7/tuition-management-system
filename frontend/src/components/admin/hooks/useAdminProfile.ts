@@ -32,39 +32,152 @@ export default function useAdminProfile({
 
   const [emailOtp, setEmailOtp] = useState("");
 
-  const saveProfile = async () => {
+  // Email verification is tied to the exact email address.
+  const [emailVerificationSentFor, setEmailVerificationSentFor] =
+    useState("");
+
+  const [verifiedEmailForDraft, setVerifiedEmailForDraft] =
+    useState("");
+
+  const setProfileEmail = (email: string) => {
+    setProfileDraft((current) => ({
+      ...current,
+      email,
+    }));
+
+    setEmailOtp("");
+    setEmailVerificationSentFor("");
+    setVerifiedEmailForDraft("");
     setPageError("");
     setNotice("");
+  };
+
+  // Send OTP only when the user clicks Verify Email.
+  const requestProfileEmailVerification = async () => {
+    setPageError("");
+    setNotice("");
+
+    const currentEmail = (adminProfile?.email ?? "").trim().toLowerCase();
+    const newEmail = profileDraft.email.trim().toLowerCase();
+
+    if (!newEmail) {
+      setPageError("Please enter an email address.");
+      return;
+    }
+
+    if (newEmail === currentEmail && adminProfile?.emailVerified) {
+      setVerifiedEmailForDraft(newEmail);
+      setEmailVerificationSentFor("");
+      setNotice("This email address is already verified.");
+      return;
+    }
+
+    if (emailVerificationSentFor === newEmail) {
+      setNotice("Verification code has already been sent to this email.");
+      return;
+    }
 
     try {
       const result = await api("/auth/admin/profile", {
         method: "PATCH",
-        body: JSON.stringify(profileDraft),
+        body: JSON.stringify({
+          email: newEmail,
+        }),
       });
 
       const profileResult = result.profile
         ? result
         : await api("/auth/admin/profile");
 
-      setAdminProfile(profileResult.profile as AdminProfile);
+      const profile = profileResult.profile as AdminProfile;
 
-      setProfileDraft({
-        name: profileResult.profile.name,
-        phone: profileResult.profile.phone,
-        email: profileResult.profile.email,
-        image: profileResult.profile.image,
-      });
+      setAdminProfile(profile);
+      setEmailVerificationSentFor(newEmail);
+      setVerifiedEmailForDraft("");
+
+      setProfileDraft((current) => ({
+        ...current,
+        email: newEmail,
+      }));
 
       setNotice(
         result.message ??
-          (profileResult.profile.pendingEmail
-            ? "Verification code sent to the new email address."
-            : "Profile updated."),
+          `Verification code sent to ${newEmail}.`,
       );
     } catch (error) {
       setPageError(
-        error instanceof Error ? error.message : "Could not update profile.",
+        error instanceof Error
+          ? error.message
+          : "Could not send verification code.",
       );
+    }
+  };
+
+  const saveProfile = async () => {
+    setPageError("");
+    setNotice("");
+
+    try {
+      const currentEmail = (adminProfile?.email ?? "").trim().toLowerCase();
+      const newEmail = profileDraft.email.trim().toLowerCase();
+
+      const emailChanged = currentEmail !== newEmail;
+
+      if (
+        emailChanged &&
+        verifiedEmailForDraft !== newEmail
+      ) {
+        setPageError("Please verify your new email address before saving.");
+        throw new Error("Please verify your new email address before saving.");
+      }
+
+      const result = await api("/auth/admin/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: profileDraft.name.trim(),
+          phone: profileDraft.phone.trim(),
+          email: newEmail,
+          image: profileDraft.image,
+        }),
+      });
+
+      const profileResult = result.profile
+        ? result
+        : await api("/auth/admin/profile");
+
+      const profile = profileResult.profile as AdminProfile;
+
+      setAdminProfile(profile);
+
+      setProfileDraft({
+        name: profile.name,
+        phone: profile.phone,
+        email: profile.email,
+        image: profile.image,
+      });
+
+      setEmailVerificationSentFor("");
+      setVerifiedEmailForDraft(
+        profile.emailVerified ? profile.email.trim().toLowerCase() : "",
+      );
+      setEmailOtp("");
+
+      setNotice(result.message ?? "Profile updated successfully.");
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "Please verify your new email address before saving."
+      ) {
+        throw error;
+      }
+
+      setPageError(
+        error instanceof Error
+          ? error.message
+          : "Could not update profile.",
+      );
+
+      throw error;
     }
   };
 
@@ -73,43 +186,77 @@ export default function useAdminProfile({
   ) => {
     event.preventDefault();
     setPageError("");
+    setNotice("");
+
+    const targetEmail = profileDraft.email.trim().toLowerCase();
+
+    if (!emailOtp.trim()) {
+      setPageError("Please enter the 6-digit verification code.");
+      return;
+    }
+
+    if (emailVerificationSentFor !== targetEmail) {
+      setPageError("Please request a verification code for this email first.");
+      return;
+    }
 
     try {
       const result = await api("/auth/admin/profile/email/verify", {
         method: "POST",
-        body: JSON.stringify({ otp: emailOtp }),
+        body: JSON.stringify({
+          otp: emailOtp,
+        }),
       });
 
-      setAdminProfile(result.profile as AdminProfile);
+      const profileResult = result.profile
+        ? result
+        : await api("/auth/admin/profile");
 
-      setProfileDraft({
-        name: result.profile.name,
-        phone: result.profile.phone,
-        email: result.profile.email,
-        image: result.profile.image,
-      });
+      const profile = profileResult.profile as AdminProfile;
 
+      setAdminProfile(profile);
+
+      setProfileDraft((current) => ({
+        ...current,
+        email: targetEmail,
+      }));
+
+      setVerifiedEmailForDraft(targetEmail);
+      setEmailVerificationSentFor("");
       setEmailOtp("");
-      setNotice("Email address verified.");
+
+      setNotice("Email address verified successfully. Now click Save Changes.");
     } catch (error) {
       setPageError(
-        error instanceof Error ? error.message : "Could not verify email.",
+        error instanceof Error
+          ? error.message
+          : "Could not verify email.",
       );
     }
   };
 
   const resendProfileEmailOtp = async () => {
     setPageError("");
+    setNotice("");
+
+    const targetEmail = profileDraft.email.trim().toLowerCase();
+
+    if (!targetEmail || emailVerificationSentFor !== targetEmail) {
+      setPageError("Please request email verification first.");
+      return;
+    }
 
     try {
       const result = await api("/auth/admin/profile/email/resend", {
         method: "POST",
       });
 
-      setNotice(result.message);
+      setNotice(result.message ?? "Verification code sent again.");
     } catch (error) {
       setPageError(
-        error instanceof Error ? error.message : "Could not send a new code.",
+        error instanceof Error
+          ? error.message
+          : "Could not send a new code.",
       );
     }
   };
@@ -117,53 +264,87 @@ export default function useAdminProfile({
   const chooseProfileImage = async (file?: File) => {
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      setPageError("Choose an image file.");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setPageError("Choose a JPG, PNG or WebP image.");
       return;
     }
 
-    try {
-      const imageUrl = URL.createObjectURL(file);
-      const image = new Image();
+    const imageUrl = URL.createObjectURL(file);
+    const image = new Image();
 
-      image.onload = () => {
-        URL.revokeObjectURL(imageUrl);
+    image.onload = () => {
+      URL.revokeObjectURL(imageUrl);
 
-        const canvas = document.createElement("canvas");
+      const canvas = document.createElement("canvas");
 
-        const scale = Math.min(
-          1,
-          320 / Math.max(image.width, image.height),
+      const scale = Math.min(
+        1,
+        320 / Math.max(image.width, image.height),
+      );
+
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        setPageError("Could not process this image.");
+        return;
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      const data = canvas.toDataURL("image/jpeg", 0.76);
+
+      if (data.length > 600_000) {
+        setPageError(
+          "This image is too large after compression. Choose a smaller image.",
         );
+        return;
+      }
 
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
+      setProfileDraft((current) => ({
+        ...current,
+        image: data,
+      }));
 
-        canvas
-          .getContext("2d")
-          ?.drawImage(image, 0, 0, canvas.width, canvas.height);
+      setPageError("");
+      setNotice("Photo selected. Save your profile to apply the change.");
+    };
 
-        const data = canvas.toDataURL("image/jpeg", 0.76);
+    image.onerror = () => {
+      URL.revokeObjectURL(imageUrl);
+      setPageError("Could not read that image.");
+    };
 
-        if (data.length > 600_000) {
-          setPageError(
-            "This image is too large after compression. Choose a smaller image.",
-          );
-          return;
-        }
+    image.src = imageUrl;
+  };
 
-        setProfileDraft((current) => ({ ...current, image: data }));
-        setPageError("");
-      };
+  const changeAdminPassword = async (
+    currentPassword: string,
+    newPassword: string,
+  ) => {
+    setPageError("");
+    setNotice("");
 
-      image.onerror = () => {
-        URL.revokeObjectURL(imageUrl);
-        setPageError("Could not read that image.");
-      };
+    try {
+      const result = await api("/auth/admin/change-password", {
+        method: "POST",
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
 
-      image.src = imageUrl;
-    } catch {
-      setPageError("Could not process that image.");
+      setNotice(result.message ?? "Password changed successfully.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not change password.";
+
+      setPageError(message);
+      throw new Error(message);
     }
   };
 
@@ -172,11 +353,16 @@ export default function useAdminProfile({
     setAdminProfile,
     profileDraft,
     setProfileDraft,
+    setProfileEmail,
     emailOtp,
     setEmailOtp,
+    emailVerificationSentFor,
+    verifiedEmailForDraft,
+    requestProfileEmailVerification,
     saveProfile,
     verifyProfileEmail,
     resendProfileEmailOtp,
     chooseProfileImage,
+    changeAdminPassword,
   };
 }

@@ -1,204 +1,179 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { api } from "@/lib/api";
+
 import PageHeader from "@/components/student/ui/PageHeader";
-import SectionCard from "@/components/student/ui/SectionCard";
 import LoadingState from "@/components/student/ui/LoadingState";
-import EmptyState from "@/components/student/ui/EmptyState";
-import StatusBadge from "@/components/student/ui/StatusBadge";
 
-interface ExamResult {
-  _id: string;
-  examId?: string;
-  examDate?: string;
-  name?: string;
-  subject?: string;
-  batch?: string;
-  totalMarks?: number;
-  obtainedMarks?: number;
-  percentage?: number;
-}
+import ExamSummaryCards from "@/components/student/exams/ExamSummaryCards";
+import OverallPerformance from "@/components/student/exams/OverallPerformance";
+import ExamList from "@/components/student/exams/ExamList";
+import ExamResultModal from "@/components/student/exams/ExamResultModal";
 
-interface ExamSummary {
-  examsTaken?: number;
-  totalObtained?: number;
-  totalPossible?: number;
-  overallAverage?: number;
-  subjectAverages?: Array<{
-    subject: string;
-    average?: number;
-  }>;
-}
+import type {
+  ExamApiResponse,
+  ExamPagination,
+  ExamResult,
+  ExamSummary,
+} from "@/types/student-exams";
 
-function formatDate(value?: string) {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-}
+import {
+  DEFAULT_EXAM_SUMMARY,
+} from "@/types/student-exams";
+
+const DEFAULT_PAGINATION: ExamPagination = {
+  page: 1,
+  limit: 10,
+  total: 0,
+  totalPages: 1,
+};
 
 export default function StudentExamsPage() {
   const [results, setResults] = useState<ExamResult[]>([]);
-  const [summary, setSummary] = useState<ExamSummary>({});
+
+  const [summary, setSummary] = useState<ExamSummary>(
+    DEFAULT_EXAM_SUMMARY
+  );
+
+  const [pagination, setPagination] = useState<ExamPagination>(
+    DEFAULT_PAGINATION
+  );
+
+  const [selectedSubject, setSelectedSubject] = useState("all");
+  const [page, setPage] = useState(1);
+
+  const [selectedResult, setSelectedResult] =
+    useState<ExamResult | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadResults() {
+      setLoading(true);
+      setError("");
+
       try {
-        const response = await api("/student/exams");
+        const params = new URLSearchParams({
+          page: String(page),
+          limit: "10",
+          subject: selectedSubject,
+        });
+
+        const response = (await api(
+          `/student/exams?${params.toString()}`
+        )) as ExamApiResponse;
+
         if (cancelled) return;
 
         setResults(response.results ?? []);
-        setSummary(response.summary ?? {});
-      } catch (err) {
+
+        setSummary({
+          ...DEFAULT_EXAM_SUMMARY,
+          ...response.summary,
+        });
+
+        setPagination({
+          ...DEFAULT_PAGINATION,
+          ...response.pagination,
+        });
+      } catch (caught) {
         if (!cancelled) {
           setError(
-            err instanceof Error ? err.message : "Unable to load exam results."
+            caught instanceof Error
+              ? caught.message
+              : "Unable to load exam results."
           );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     void loadResults();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, selectedSubject, retryCount]);
 
-  if (loading) return <LoadingState message="Loading exam results..." />;
+  function handleSubjectChange(subject: string) {
+    setSelectedSubject(subject);
+    setPage(1);
+    setSelectedResult(null);
+  }
+
+  function handlePageChange(nextPage: number) {
+    setPage(nextPage);
+    setSelectedResult(null);
+  }
+
+  if (loading && results.length === 0 && page === 1) {
+    return <LoadingState message="Loading exam results..." />;
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-[1450px] space-y-5 pb-8 sm:space-y-6">
       <PageHeader
         title="Exams & Results"
-        description="Review your examination performance and subject-wise marks."
+        description="Track your exams, marks and academic performance."
       />
 
       {error && (
-        <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-400">
-          {error}
-        </p>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
+          <p className="text-sm font-bold text-red-700 dark:text-red-300">
+            Unable to load exam results
+          </p>
+
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setRetryCount((value) => value + 1)}
+            className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-red-700"
+          >
+            Try Again
+          </button>
+        </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Exams Taken</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
-            {summary.examsTaken ?? results.length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Total Marks</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
-            {summary.totalObtained ?? 0} / {summary.totalPossible ?? 0}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Overall Average</p>
-          <p className="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
-            {Number(summary.overallAverage ?? 0).toFixed(1)}%
-          </p>
-        </div>
-      </div>
+      {/* Performance summary */}
+      <ExamSummaryCards summary={summary} />
 
-      <SectionCard title="Subject Performance">
-        {!summary.subjectAverages?.length ? (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Subject-wise performance will appear here when results are available.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {summary.subjectAverages.map((item, index) => (
-              <div key={`${item.subject}-${index}`}>
-                <div className="mb-2 flex justify-between gap-3 text-sm">
-                  <span className="font-medium text-gray-700 dark:text-gray-300">
-                    {item.subject}
-                  </span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {Number(item.average ?? 0).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                  <div
-                    className="h-full rounded-full bg-blue-600"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, Number(item.average ?? 0)))}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </SectionCard>
+      {/* Overall performance */}
+      <OverallPerformance summary={summary} />
 
-      <SectionCard
-        title="Exam Results"
-        description="Results published by your Tuition Admin."
-      >
-        {results.length === 0 ? (
-          <EmptyState
-            title="No results published yet"
-            description="Your examination results will appear here once published."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  <th className="px-3 py-3 font-medium">Exam</th>
-                  <th className="px-3 py-3 font-medium">Subject</th>
-                  <th className="px-3 py-3 font-medium">Date</th>
-                  <th className="px-3 py-3 font-medium">Marks</th>
-                  <th className="px-3 py-3 font-medium">Percentage</th>
-                  <th className="px-3 py-3 font-medium">Result</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((result) => (
-                  <tr
-                    key={result._id}
-                    className="border-b border-gray-100 last:border-0 dark:border-gray-800"
-                  >
-                    <td className="px-3 py-4 font-medium text-gray-900 dark:text-white">
-                      {result.name || "Examination"}
-                    </td>
-                    <td className="px-3 py-4 text-gray-600 dark:text-gray-300">
-                      {result.subject || "—"}
-                    </td>
-                    <td className="px-3 py-4 text-gray-600 dark:text-gray-300">
-                      {formatDate(result.examDate)}
-                    </td>
-                    <td className="px-3 py-4 text-gray-600 dark:text-gray-300">
-                      {result.obtainedMarks ?? 0} / {result.totalMarks ?? 0}
-                    </td>
-                    <td className="px-3 py-4 text-gray-600 dark:text-gray-300">
-                      {Number(result.percentage ?? 0).toFixed(1)}%
-                    </td>
-                    <td className="px-3 py-4">
-                      <StatusBadge
-                        status={Number(result.percentage ?? 0) >= 33 ? "Passed" : "Needs Improvement"}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
+      {/* Exam results */}
+      {loading && results.length > 0 && (
+        <div className="rounded-xl bg-violet-50 px-4 py-2 text-xs font-medium text-violet-700 dark:bg-violet-950/30 dark:text-violet-300">
+          Updating exam results...
+        </div>
+      )}
+
+      <ExamList
+        results={results}
+        subjects={summary.subjects}
+        selectedSubject={selectedSubject}
+        onSubjectChange={handleSubjectChange}
+        onView={setSelectedResult}
+        pagination={pagination}
+        onPageChange={handlePageChange}
+      />
+
+      {/* Complete result details popup */}
+      <ExamResultModal
+        result={selectedResult}
+        onClose={() => setSelectedResult(null)}
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
-﻿"use client";
+﻿
+"use client";
 
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
@@ -32,7 +33,6 @@ import AdminSidebar from "@/components/admin/layout/AdminSidebar";
 import AdminTopbar from "@/components/admin/layout/AdminTopbar";
 import AdminPageFooter from "@/components/admin/layout/AdminPageFooter";
 
-
 import type {
   Student,
   Batch,
@@ -41,7 +41,6 @@ import type {
   BatchDraft,
   StudentEditDraft,
 } from "@/components/admin/shared/types";
-
 
 const menu: { label: Section; icon: string }[] = [
   { label: "Dashboard", icon: "home" },
@@ -60,18 +59,11 @@ export default function Home() {
   const router = useRouter();
   const globalSearchRef = useRef<HTMLInputElement>(null);
 
-
- const {
-  batches,
-  batchSummary,
-  refreshBatches,
-} = useAdminBatches();
+  const { batches, batchSummary, refreshBatches } = useAdminBatches();
 
   const [batchStudentOptions, setBatchStudentOptions] = useState<Student[]>([]);
-      const {
-     dashboardFeeSummary,
-      loadDashboardFees,
-    } = useAdminDashboard();
+
+  const { dashboardFeeSummary, loadDashboardFees } = useAdminDashboard();
 
   const [studentEditing, setStudentEditing] = useState<Student | null>(null);
 
@@ -96,27 +88,27 @@ export default function Home() {
   const [greeting, setGreeting] = useState("Good Morning");
 
   const { dark, activateRole, clearRole } = useTheme();
-  const [mobileMenu, setMobileMenu] = useState(false);
 
-   const [authenticated, setAuthenticated] = useState(false);
-   const [authChecking, setAuthChecking] = useState(true);
-   const [loading, setLoading] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const {
-  directory,
-  studentSummary,
-  studentPagination,
-  studentClasses,
-  studentListLoading,
-  studentListError,
-  setStudentListError,
-  studentFilters,
-  setStudentFilters,
-  refreshStudents,
-} = useAdminStudents({
-  authenticated,
-  section,
-});
+    directory,
+    studentSummary,
+    studentPagination,
+    studentClasses,
+    studentListLoading,
+    studentListError,
+    setStudentListError,
+    studentFilters,
+    setStudentFilters,
+    refreshStudents,
+  } = useAdminStudents({
+    authenticated,
+    section,
+  });
 
   const [pageError, setPageError] = useState("");
   const [notice, setNotice] = useState("");
@@ -132,70 +124,76 @@ export default function Home() {
     studentIds: [],
   });
 
+  // Admin Profile Hook
   const {
-  adminProfile,
-  setAdminProfile,
-  profileDraft,
-  setProfileDraft,
-  emailOtp,
-  setEmailOtp,
-  saveProfile,
-  verifyProfileEmail,
-  resendProfileEmailOtp,
-  chooseProfileImage,
-} = useAdminProfile({
-  setPageError,
-  setNotice,
-});
+    adminProfile,
+    setAdminProfile,
+    profileDraft,
+    setProfileDraft,
+    emailOtp,
+    setEmailOtp,
+    emailVerificationSentFor,
+    verifiedEmailForDraft,
+    requestProfileEmailVerification,
+    saveProfile,
+    verifyProfileEmail,
+    resendProfileEmailOtp,
+    chooseProfileImage,
+    changeAdminPassword,
+  } = useAdminProfile({
+    setPageError,
+    setNotice,
+  });
 
   const [batchSearch, setBatchSearch] = useState("");
 
-  const selectedBatch = batches.find((item) => item._id === batchId) ?? null;
+  const selectedBatch =
+    batches.find((item) => item._id === batchId) ?? null;
 
-const {
-  students,
-  saved,
-  attendanceLoading,
-  attendanceSaving,
-  present,
-  absent,
-  attendancePercentage,
-  loadAttendance,
-  saveAttendance,
-  setStudents,
-} = useAdminAttendance({
-  batchId,
-  date,
-  selectedBatch,
-  setPageError,
-  setNotice,
-});
+  const {
+    students,
+    saved,
+    attendanceLoading,
+    attendanceSaving,
+    present,
+    absent,
+    attendancePercentage,
+    loadAttendance,
+    saveAttendance,
+    setStudents,
+  } = useAdminAttendance({
+    batchId,
+    date,
+    selectedBatch,
+    setPageError,
+    setNotice,
+  });
 
   useAdminWorkspace({
-  batchId,
-  refreshBatches,
-  refreshStudents,
-  loadDashboardFees,
-  loadAttendance,
+    batchId,
+    refreshBatches,
+    refreshStudents,
+    loadDashboardFees,
+    loadAttendance,
 
-  setBatchId,
-  setDate,
-  setTodayLabel,
-  setGreeting,
+    setBatchId,
+    setDate,
+    setTodayLabel,
+    setGreeting,
 
-  setAdminProfile,
-  setProfileDraft,
+    setAdminProfile,
+    setProfileDraft,
 
     setAuthenticated,
-  setAuthChecking,
-  setLoading,
-  setPageError,
+    setAuthChecking,
+    setLoading,
+    setPageError,
 
-  activateRole,
-  clearRole,
-});
+    activateRole,
+    clearRole,
+  });
 
-      useEffect(() => {
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedSection = params.get("section");
     const editId = params.get("edit");
@@ -251,7 +249,6 @@ const {
       return () => window.clearTimeout(timer);
     }
   }, []);
-
 
   useEffect(() => {
     if (!authenticated || !batchId || !date) return;
@@ -400,6 +397,7 @@ const {
   };
 
   const openStudentCreation = () => router.push("/admin/students/new");
+
   const saveStudentEdit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -455,29 +453,28 @@ const {
     }
   };
 
-    
-const handleLogout = async () => {
-  setPageError("");
-  setNotice("");
+  const handleLogout = async () => {
+    setPageError("");
+    setNotice("");
 
-  try {
-    await api("/auth/logout", {
-      method: "POST",
-    });
+    try {
+      await api("/auth/logout", {
+        method: "POST",
+      });
 
-    clearRole();
-    setAuthenticated(false);
-    setAdminProfile(null);
+      clearRole();
+      setAuthenticated(false);
+      setAdminProfile(null);
 
-    router.replace("/admin/login");
-  } catch (error) {
-    setPageError(
-      error instanceof Error
-        ? error.message
-        : "Could not log out. Please try again."
-    );
-  }
-};
+      router.replace("/admin/login");
+    } catch (error) {
+      setPageError(
+        error instanceof Error
+          ? error.message
+          : "Could not log out. Please try again.",
+      );
+    }
+  };
 
   return (
     <main
@@ -509,26 +506,33 @@ const handleLogout = async () => {
           />
 
           <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
-            {!["Dashboard", "Fees", "Notices", "Students", "Classes & Batches", "Tests & Results"].includes(section) && (
-  <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-       <div className="mb-6 flex w-full items-center justify-center">
-  <h1 className="text-center text-xl font-bold text-gray-900 dark:text-white">
-    Take attendance
-  </h1>
-</div>
+            {![
+              "Dashboard",
+              "Fees",
+              "Notices",
+              "Students",
+              "Classes & Batches",
+              "Tests & Results",
+            ].includes(section) && (
+              <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                <div className="mb-6 flex w-full items-center justify-center">
+                  <h1 className="text-center text-xl font-bold text-gray-900 dark:text-white">
+                    Take attendance
+                  </h1>
+                </div>
 
-    {section === "Attendance" && (
-      <button
-        className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
-        onClick={() =>
-          document.getElementById("attendance-date")?.focus()
-        }
-      >
-        ▦ Today ⌄
-      </button>
-    )}
-  </div>
-)}
+                {section === "Attendance" && (
+                  <button
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
+                    onClick={() =>
+                      document.getElementById("attendance-date")?.focus()
+                    }
+                  >
+                    ▦ Today ⌄
+                  </button>
+                )}
+              </div>
+            )}
 
             {pageError && (
               <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
@@ -560,16 +564,14 @@ const handleLogout = async () => {
               </div>
             )}
 
-            
-
-               {authChecking ? (
-                   <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900">
+            {authChecking ? (
+              <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900">
                 <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-                 <p className="mt-4 text-sm font-medium text-gray-600 dark:text-gray-300">
-                 Checking admin session...
+                <p className="mt-4 text-sm font-medium text-gray-600 dark:text-gray-300">
+                  Checking admin session...
                 </p>
-                </div>
-             ) : !authenticated ? (
+              </div>
+            ) : !authenticated ? (
               <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900">
                 <div className="mb-3 text-4xl">♙</div>
 
@@ -636,7 +638,7 @@ const handleLogout = async () => {
                 saved={saved}
                 setBatchId={setBatchId}
                 setDate={setDate}
-               setStudents={setStudents}
+                setStudents={setStudents}
                 saveAttendance={() => void saveAttendance()}
               />
             ) : section === "Classes & Batches" ? (
@@ -699,10 +701,14 @@ const handleLogout = async () => {
                 setProfileDraft={setProfileDraft}
                 emailOtp={emailOtp}
                 setEmailOtp={setEmailOtp}
+                emailVerificationSentFor={emailVerificationSentFor}
+                verifiedEmailForDraft={verifiedEmailForDraft}
+                onRequestEmailVerification={requestProfileEmailVerification}
                 onChooseImage={(file) => void chooseProfileImage(file)}
-                onSave={() => void saveProfile()}
+                onSave={saveProfile}
                 onVerifyEmail={(event) => void verifyProfileEmail(event)}
                 onResendOtp={() => void resendProfileEmailOtp()}
+                onChangePassword={changeAdminPassword}
               />
             ) : section === "Settings" ? (
               <AdminSettingsSection />
@@ -728,7 +734,8 @@ const handleLogout = async () => {
                 </button>
               </div>
             )}
-                        <AdminPageFooter authenticated={authenticated} />
+
+            <AdminPageFooter authenticated={authenticated} />
           </div>
         </div>
       </div>

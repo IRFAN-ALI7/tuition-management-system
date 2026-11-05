@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -240,7 +239,17 @@ export default function RoleLogin({ role }: { role: Role }) {
         </div>
 
         {/* Login card */}
-        <div className="flex w-full items-center justify-center lg:justify-end">
+        <div className="flex w-full flex-col items-center lg:items-end">
+
+          {/* Back to Home: mobile only */}
+          <Link
+            href="/"
+            className="mb-4 inline-flex min-h-[42px] w-full max-w-[510px] items-center gap-2 rounded-xl border border-[#d9caff] bg-white/90 px-4 text-[13px] font-semibold text-[#653bd7] shadow-sm transition duration-200 hover:bg-[#f8f4ff] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#7950ed] sm:hidden"
+          >
+            <span className="text-[19px] leading-none">←</span>
+            Back to Home
+          </Link>
+
           <section className="w-full max-w-[510px] rounded-[24px] border border-[#e8defe] bg-white/95 px-5 py-7 shadow-[0_16px_48px_#5c3caa14,0_3px_12px_#7450d109] backdrop-blur-sm transition-shadow duration-300 sm:rounded-[27px] sm:px-9 sm:py-8 lg:px-10 lg:py-9">
 
             {/* Card icon */}

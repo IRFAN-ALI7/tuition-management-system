@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
@@ -9,7 +8,6 @@ import LoadingState from "@/components/student/ui/LoadingState";
 
 import FeeOverview from "@/components/student/fees/FeeOverview";
 import MonthlyFeeStatement from "@/components/student/fees/MonthlyFeeStatement";
-import SelectedMonthDetails from "@/components/student/fees/SelectedMonthDetails";
 import PaymentHistory from "@/components/student/fees/PaymentHistory";
 import FeeReceiptModal from "@/components/student/fees/FeeReceiptModal";
 
@@ -24,17 +22,17 @@ export default function StudentFeesPage() {
   const currentDate = new Date();
 
   const [year, setYear] = useState(currentDate.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(
-    currentDate.getMonth() + 1,
-  );
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
   const [paymentPage, setPaymentPage] = useState(1);
 
   const [data, setData] = useState<StudentFeeData | null>(null);
+
   const [monthDetails, setMonthDetails] =
     useState<StudentMonthDetails | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [monthLoading, setMonthLoading] = useState(false);
+
   const [error, setError] = useState("");
   const [monthError, setMonthError] = useState("");
   const [receiptError, setReceiptError] = useState("");
@@ -70,6 +68,13 @@ export default function StudentFeesPage() {
   }, [year, paymentPage]);
 
   const loadMonthDetails = useCallback(async () => {
+    if (selectedMonth === null) {
+      setMonthDetails(null);
+      setMonthError("");
+      setMonthLoading(false);
+      return;
+    }
+
     setMonthLoading(true);
     setMonthError("");
 
@@ -81,6 +86,7 @@ export default function StudentFeesPage() {
       setMonthDetails(response);
     } catch (caught) {
       setMonthDetails(null);
+
       setMonthError(
         caught instanceof Error
           ? caught.message
@@ -102,10 +108,14 @@ export default function StudentFeesPage() {
   function handleYearChange(nextYear: number) {
     setYear(nextYear);
     setPaymentPage(1);
+    setSelectedMonth(null);
+    setMonthDetails(null);
   }
 
   function handleMonthSelect(month: number) {
-    setSelectedMonth(month);
+    setSelectedMonth((current) =>
+      current === month ? null : month,
+    );
   }
 
   async function handleReceipt(paymentId: string) {
@@ -160,6 +170,7 @@ export default function StudentFeesPage() {
   }
 
   const months: StudentFeeMonth[] = data?.months ?? [];
+
   const totals = data?.totals ?? {
     feeAmount: 0,
     paidAmount: 0,
@@ -186,6 +197,7 @@ export default function StudentFeesPage() {
         action={
           <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
             Academic Year
+
             <select
               value={year}
               onChange={(event) =>
@@ -213,20 +225,20 @@ export default function StudentFeesPage() {
         </p>
       )}
 
-      <FeeOverview months={months} totals={totals} />
+      <FeeOverview
+        months={months}
+        totals={totals}
+        monthlyFee={data?.student.monthlyFees ?? null}
+      />
 
       <MonthlyFeeStatement
         year={year}
         months={months}
         selectedMonth={selectedMonth}
         onSelectMonth={handleMonthSelect}
-      />
-
-      <SelectedMonthDetails
-        month={monthDetails?.month ?? null}
-        installments={monthDetails?.installments ?? []}
-        loading={monthLoading}
-        error={monthError}
+        monthDetails={monthDetails}
+        monthLoading={monthLoading}
+        monthError={monthError}
         onRetry={() => void loadMonthDetails()}
         onReceipt={handleReceipt}
       />
@@ -249,6 +261,7 @@ export default function StudentFeesPage() {
       {receiptError && (
         <div className="fixed bottom-5 right-5 z-[10001] max-w-sm rounded-xl border border-red-200 bg-white p-4 text-xs text-red-700 shadow-xl dark:border-red-900 dark:bg-slate-900 dark:text-red-300">
           <p>{receiptError}</p>
+
           <button
             type="button"
             onClick={() => setReceiptError("")}
