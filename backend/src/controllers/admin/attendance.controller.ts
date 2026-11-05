@@ -1,4 +1,3 @@
-
 import type { Request, Response, NextFunction } from "express";
 import { isValidObjectId, Types } from "mongoose";
 
@@ -247,7 +246,9 @@ export async function getBatchAttendance(
       Attendance.findOne({ batchId, date }).lean(),
 
       Student.find({ batchId, active: true })
-        .select("studentId name phone fatherName className batchId active")
+        .select(
+          "studentId name phone fatherName className batchId active profilePhoto"
+        )
         .sort({ name: 1 })
         .lean(),
     ]);

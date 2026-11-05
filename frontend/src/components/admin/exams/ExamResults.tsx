@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
@@ -142,32 +141,61 @@ export function ExamResults({
             </thead>
 
             <tbody>
-              {sortedResults.map((row) => (
-                <tr
-                  key={row.student._id}
-                  className="hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                >
-                  <td className={cellClass}>
-                    {row.student.studentId || "—"}
-                  </td>
-                  <td className={`${cellClass} font-medium`}>
-                    {row.student.name}
-                  </td>
-                  <td className={cellClass}>
-                    {row.obtainedMarks === null
-                      ? "—"
-                      : `${row.obtainedMarks} / ${detail.exam.totalMarks}`}
-                  </td>
-                  <td className={cellClass}>
-                    {row.percentage === null ? "—" : `${row.percentage}%`}
-                  </td>
-                  <td className={cellClass}>
-                    <span className={statusClass(row.obtainedMarks === null)}>
-                      {row.saveStatus}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {sortedResults.map((row) => {
+                const initials = row.student.name
+                  .trim()
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((part) => part.charAt(0).toUpperCase())
+                  .join("");
+
+                return (
+                  <tr
+                    key={row.student._id}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  >
+                    <td className={cellClass}>
+                      {row.student.studentId || "—"}
+                    </td>
+
+                    <td className={cellClass}>
+                      <div className="flex min-w-[180px] items-center gap-3">
+                        {row.student.profilePhoto ? (
+                          <img
+                            src={row.student.profilePhoto}
+                            alt={`${row.student.name} profile`}
+                            className="h-10 w-10 shrink-0 rounded-full border border-slate-200 object-cover dark:border-slate-700"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
+                            {initials || "S"}
+                          </div>
+                        )}
+
+                        <span className="font-medium text-slate-900 dark:text-white">
+                          {row.student.name}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className={cellClass}>
+                      {row.obtainedMarks === null
+                        ? "—"
+                        : `${row.obtainedMarks} / ${detail.exam.totalMarks}`}
+                    </td>
+
+                    <td className={cellClass}>
+                      {row.percentage === null ? "—" : `${row.percentage}%`}
+                    </td>
+
+                    <td className={cellClass}>
+                      <span className={statusClass(row.obtainedMarks === null)}>
+                        {row.saveStatus}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

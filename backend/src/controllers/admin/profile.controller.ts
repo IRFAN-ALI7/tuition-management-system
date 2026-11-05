@@ -11,9 +11,7 @@ import {
   sendAdminEmailVerificationOtp,
 } from "../../services/email.service";
 
-import {
-  AuthRequest,
-} from "../../middleware/authenticate";
+import { AuthRequest } from "../../middleware/authenticate";
 
 import {
   uploadProfileImage,
@@ -49,6 +47,26 @@ function validEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
 }
 
+// Convert frontend Base64 image data URL into a Node.js Buffer.
+function decodeProfileImageDataUrl(value: string): Buffer {
+  const match =
+    /^data:image\/(?:jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(
+      value,
+    );
+
+  if (!match) {
+    throw new Error("Invalid image file.");
+  }
+
+  const imageBuffer = Buffer.from(match[1], "base64");
+
+  if (!imageBuffer.length) {
+    throw new Error("Invalid image file.");
+  }
+
+  return imageBuffer;
+}
+
 function profileResponse(user: {
   id: string;
   name: string;
@@ -72,11 +90,12 @@ function profileResponse(user: {
 async function issueProfileEmailOtp(
   userId: string,
   response: Response,
-  force = false
+  force = false,
 ) {
   if (!isEmailServiceConfigured() || !resetSecurityConfigured()) {
     response.status(503).json({
-      error: "Email verification is temporarily unavailable. Please try again later.",
+      error:
+        "Email verification is temporarily unavailable. Please try again later.",
     });
     return;
   }
@@ -86,7 +105,7 @@ async function issueProfileEmailOtp(
     role: "admin",
     active: true,
   }).select(
-    "+pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt"
+    "+pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt",
   );
 
   if (!user?.pendingEmail) {
@@ -152,13 +171,13 @@ const profileOtpLimit = rateLimit({
 export async function getAdminProfile(
   request: Request,
   response: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   try {
     const auth = (request as AuthRequest).auth!;
 
     const user = await User.findById(auth.userId).select(
-      "name mobile email emailVerified image +pendingEmail"
+      "name mobile email emailVerified image +pendingEmail",
     );
 
     if (!user) {
@@ -176,7 +195,7 @@ export async function getAdminProfile(
 export async function updateAdminProfile(
   request: Request,
   response: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   let uploadedPublicId = "";
 
@@ -213,7 +232,7 @@ export async function updateAdminProfile(
         image.length > PROFILE_IMAGE_MAX_LENGTH ||
         (image !== "" &&
           !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(
-            image
+            image,
           ) &&
           !/^https?:\/\/.+/i.test(image)))
     ) {
@@ -224,7 +243,7 @@ export async function updateAdminProfile(
     }
 
     const user = await User.findById(auth.userId).select(
-      "name mobile email emailVerified image imagePublicId +pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt"
+      "name mobile email emailVerified image imagePublicId +pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt",
     );
 
     if (!user) {
@@ -234,7 +253,6 @@ export async function updateAdminProfile(
 
     const oldPublicId = user.imagePublicId ?? "";
 
-    // Validate email and check duplicates BEFORE uploading an image.
     if (email !== undefined) {
       const normalizedEmail = email.trim().toLowerCase();
 
@@ -261,14 +279,15 @@ export async function updateAdminProfile(
     let nextImage = user.image ?? "";
     let nextImagePublicId = oldPublicId;
 
-    // Handle profile image only after all email checks have passed.
     if (image !== undefined) {
       if (image === "") {
         nextImage = "";
         nextImagePublicId = "";
       } else if (image.startsWith("data:image/")) {
+        const imageBuffer = decodeProfileImageDataUrl(image);
+
         const uploadResult = await uploadProfileImage({
-          file: image,
+          file: imageBuffer,
           type: "admin",
         });
 
@@ -276,11 +295,9 @@ export async function updateAdminProfile(
         nextImagePublicId = uploadResult.publicId;
         uploadedPublicId = uploadResult.publicId;
       } else if (image === user.image) {
-        // Existing image URL: keep its Cloudinary public ID.
         nextImage = user.image ?? "";
         nextImagePublicId = oldPublicId;
       } else {
-        // External URL: it is not managed by our Cloudinary account.
         nextImage = image;
         nextImagePublicId = "";
       }
@@ -318,10 +335,8 @@ export async function updateAdminProfile(
 
     await user.save();
 
-    // Database save succeeded. The new Cloudinary image is now in use.
     uploadedPublicId = "";
 
-    // Delete the previous Cloudinary image only after successful save.
     if (
       image !== undefined &&
       oldPublicId &&
@@ -330,7 +345,10 @@ export async function updateAdminProfile(
       try {
         await deleteProfileImage(oldPublicId);
       } catch (deleteError) {
-        console.error("Could not delete old admin profile image:", deleteError);
+        console.error(
+          "Could not delete old admin profile image:",
+          deleteError,
+        );
       }
     }
 
@@ -341,12 +359,14 @@ export async function updateAdminProfile(
 
     response.json({ profile: profileResponse(user) });
   } catch (error) {
-    // If saving failed, clean up the newly uploaded image.
     if (uploadedPublicId) {
       try {
         await deleteProfileImage(uploadedPublicId);
       } catch (deleteError) {
-        console.error("Could not clean up uploaded admin profile image:", deleteError);
+        console.error(
+          "Could not clean up uploaded admin profile image:",
+          deleteError,
+        );
       }
     }
 
@@ -366,16 +386,127 @@ export async function updateAdminProfile(
   }
 }
 
+// POST /admin/profile/email/request
+export async function requestAdminProfileEmailOtp(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+) {
+  try {
+    if (!resetSecurityConfigured() || !isEmailServiceConfigured()) {
+      response.status(503).json({
+        error: "Email verification is temporarily unavailable.",
+      });
+      return;
+    }
+
+    const auth = (request as AuthRequest).auth!;
+    const email =
+      typeof request.body?.email === "string"
+        ? request.body.email.trim().toLowerCase()
+        : "";
+
+    if (!validEmail(email)) {
+      response.status(400).json({
+        error: "Enter a valid email address.",
+      });
+      return;
+    }
+
+    const user = await User.findOne({
+      _id: auth.userId,
+      role: "admin",
+      active: true,
+    }).select(
+      "email emailVerified +pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt",
+    );
+
+    if (!user) {
+      response.status(404).json({
+        error: "Admin account not found.",
+      });
+      return;
+    }
+
+    if (email === user.email && user.emailVerified) {
+      response.status(400).json({
+        error: "This email address is already verified.",
+      });
+      return;
+    }
+
+    const existingUser = await User.exists({
+      email,
+      _id: { $ne: user._id },
+    });
+
+    if (existingUser) {
+      response.status(409).json({
+        error: "That email address is already in use.",
+      });
+      return;
+    }
+
+    user.pendingEmail = email;
+    user.emailOtpHash = undefined;
+    user.emailOtpExpiresAt = undefined;
+    user.emailOtpAttempts = 0;
+    user.emailOtpResendAt = undefined;
+
+    await user.save();
+
+    await issueProfileEmailOtp(user.id, response, true);
+  } catch (error) {
+    next(error);
+  }
+}
+
+// POST /admin/profile/email/cancel
+export async function cancelAdminProfileEmailVerification(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+) {
+  try {
+    const auth = (request as AuthRequest).auth!;
+
+    const user = await User.findById(auth.userId).select(
+      "+pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt",
+    );
+
+    if (!user) {
+      response.status(404).json({
+        error: "Admin profile not found.",
+      });
+      return;
+    }
+
+    user.pendingEmail = undefined;
+    user.emailOtpHash = undefined;
+    user.emailOtpExpiresAt = undefined;
+    user.emailOtpAttempts = 0;
+    user.emailOtpResendAt = undefined;
+
+    await user.save();
+
+    response.json({
+      message: "Pending email verification cancelled.",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 // POST /admin/profile/email/resend
 export async function resendAdminProfileEmailOtp(
   request: Request,
   response: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   try {
     await issueProfileEmailOtp(
       (request as AuthRequest).auth!.userId,
-      response
+      response,
     );
   } catch (error) {
     next(error);
@@ -386,7 +517,7 @@ export async function resendAdminProfileEmailOtp(
 export async function verifyAdminProfileEmail(
   request: Request,
   response: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   try {
     if (!resetSecurityConfigured()) {
@@ -397,9 +528,7 @@ export async function verifyAdminProfileEmail(
     }
 
     const otp =
-      typeof request.body?.otp === "string"
-        ? request.body.otp.trim()
-        : "";
+      typeof request.body?.otp === "string" ? request.body.otp.trim() : "";
 
     if (!/^\d{6}$/.test(otp)) {
       response.status(400).json({
@@ -411,7 +540,7 @@ export async function verifyAdminProfileEmail(
     const auth = (request as AuthRequest).auth!;
 
     const user = await User.findById(auth.userId).select(
-      "email emailVerified +pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt"
+      "email emailVerified +pendingEmail +emailOtpHash +emailOtpExpiresAt +emailOtpAttempts +emailOtpResendAt",
     );
 
     const now = new Date();
@@ -430,9 +559,7 @@ export async function verifyAdminProfileEmail(
       return;
     }
 
-    const expected = resetHash(
-      `${user.id}:${user.pendingEmail}:${otp}`
-    );
+    const expected = resetHash(`${user.id}:${user.pendingEmail}:${otp}`);
 
     if (!sameHash(user.emailOtpHash, expected)) {
       user.emailOtpAttempts += 1;
@@ -474,7 +601,7 @@ export async function verifyAdminProfileEmail(
           emailOtpResendAt: 1,
         },
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).select("name mobile email emailVerified image");
 
     if (!updated) {
@@ -497,7 +624,8 @@ export async function verifyAdminProfileEmail(
       error.code === 11000
     ) {
       response.status(409).json({
-        error: "That email address is already in use. Choose a different address.",
+        error:
+          "That email address is already in use. Choose a different address.",
       });
       return;
     }
@@ -506,11 +634,10 @@ export async function verifyAdminProfileEmail(
   }
 }
 
-
 export async function changeAdminPassword(
   request: Request,
   response: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   try {
     const auth = (request as AuthRequest).auth!;
@@ -562,10 +689,7 @@ export async function changeAdminPassword(
       return;
     }
 
-    const valid = await bcrypt.compare(
-      currentPassword,
-      user.passwordHash
-    );
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
 
     if (!valid) {
       response.status(400).json({
@@ -586,6 +710,5 @@ export async function changeAdminPassword(
     next(error);
   }
 }
-
 
 export { profileOtpLimit };

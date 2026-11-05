@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import type { FormEvent } from "react";
 
@@ -309,7 +310,6 @@ export default function useAdminProfile({
       }));
 
       setPageError("");
-      setNotice("Photo selected. Save your profile to apply the change.");
     };
 
     image.onerror = () => {

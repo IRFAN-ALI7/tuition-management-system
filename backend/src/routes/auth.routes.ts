@@ -1,4 +1,3 @@
-
 import { Router } from "express";
 
 import {
@@ -13,6 +12,8 @@ import {
 import {
   getAdminProfile,
   updateAdminProfile,
+  requestAdminProfileEmailOtp,
+  cancelAdminProfileEmailVerification,
   resendAdminProfileEmailOtp,
   verifyAdminProfileEmail,
   profileOtpLimit,
@@ -64,12 +65,29 @@ router.get(
   getAdminProfile
 );
 
-// UPDATE ADMIN PROFILE
+// UPDATE ADMIN PROFILE - FINAL SAVE ONLY
 router.patch(
   "/admin/profile",
   requireAuth,
   requireAdmin,
   updateAdminProfile
+);
+
+// REQUEST OTP FOR NEW PROFILE EMAIL
+router.post(
+  "/admin/profile/email/request",
+  requireAuth,
+  requireAdmin,
+  profileOtpLimit,
+  requestAdminProfileEmailOtp
+);
+
+// CANCEL PENDING PROFILE EMAIL VERIFICATION
+router.post(
+  "/admin/profile/email/cancel",
+  requireAuth,
+  requireAdmin,
+  cancelAdminProfileEmailVerification
 );
 
 // CHANGE ADMIN PASSWORD

@@ -142,12 +142,11 @@ export default function useAdminWorkspace({
       );
     }, 0);
 
+    // Keep the checking screen visible until navigation completes.
+    // Do not render the signed-out workspace screen during redirect.
     const redirectToLogin = () => {
       if (!active) return;
 
-      setAuthenticated(false);
-      clearRole();
-      setAuthChecking(false);
       router.replace("/admin/login");
     };
 

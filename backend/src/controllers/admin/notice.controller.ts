@@ -15,11 +15,11 @@ export async function getAllNotices(
   next: NextFunction
 ) {
   try {
-    const notices = await Notice.find()
-      .populate("batchId", "name")
-      .populate("studentId", "name phone")
-      .sort({ createdAt: -1, _id: -1 })
-      .lean();
+  const notices = await Notice.find()
+    .populate("batchId", "name")
+    .populate("studentId", "name phone profilePhoto")
+    .sort({ createdAt: -1, _id: -1 })
+    .lean();
 
     response.json({ notices });
   } catch (error) {

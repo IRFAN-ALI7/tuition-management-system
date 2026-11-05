@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
@@ -691,7 +692,7 @@ function StudentDetailsContent() {
             />
 
             {/* Summary cards */}
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
               {[
                 {
                   label: "Total fees due",
@@ -742,19 +743,19 @@ function StudentDetailsContent() {
               ].map((metric) => (
                 <article
                   key={metric.label}
-                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                  className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900"
                 >
-                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                  <p className="text-xs font-medium leading-4 text-slate-500 sm:text-sm dark:text-slate-400">
                     {metric.label}
                   </p>
 
                   <strong
-                    className={`mt-3 block break-words text-2xl font-bold ${metric.color}`}
+                    className={`mt-2 block break-words text-xl font-bold sm:mt-3 sm:text-2xl ${metric.color}`}
                   >
                     {metric.value}
                   </strong>
 
-                  <span className="mt-2 block text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  <span className="mt-1 block text-[10px] leading-4 text-slate-500 sm:mt-2 sm:text-xs sm:leading-5 dark:text-slate-400">
                     {metric.description}
                   </span>
                 </article>

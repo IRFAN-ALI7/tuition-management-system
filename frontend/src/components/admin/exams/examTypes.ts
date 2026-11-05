@@ -1,4 +1,3 @@
-
 export type BatchOption = {
   _id: string;
   name: string;
@@ -13,6 +12,7 @@ export type Student = {
   name: string;
   className?: string;
   active?: boolean;
+  profilePhoto?: string;
 };
 
 export type Exam = {

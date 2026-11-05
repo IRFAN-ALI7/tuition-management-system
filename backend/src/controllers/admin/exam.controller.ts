@@ -409,12 +409,12 @@ export async function getExamById(
       return;
     }
 
-    const students = await Student.find({
-      _id: { $in: exam.studentIds },
-    })
-      .select("studentId name className active")
-      .sort({ name: 1 })
-      .lean();
+     const students = await Student.find({
+  _id: { $in: exam.studentIds },
+})
+  .select("studentId name className active profilePhoto")
+  .sort({ name: 1 })
+  .lean();
 
     const marks = await ExamResult.find({ examId }).lean();
 

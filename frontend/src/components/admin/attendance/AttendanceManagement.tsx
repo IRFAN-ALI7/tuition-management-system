@@ -1,7 +1,7 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import NextImage from "next/image";
 import type { Student, Batch } from "../shared/types";
 
 type Props = {
@@ -336,8 +336,19 @@ export default function AttendanceManagement({
 
                       <td className="p-3 sm:p-4">
                         <span className="flex min-w-0 items-center gap-2">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-                            {student.name.slice(0, 1).toUpperCase()}
+                          <span className="relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-sm font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                            {student.profilePhoto ? (
+                              <NextImage
+                                src={student.profilePhoto}
+                                alt={`${student.name} profile photo`}
+                                fill
+                                sizes="32px"
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              student.name.slice(0, 1).toUpperCase()
+                            )}
                           </span>
 
                           <strong className="min-w-0 break-words">

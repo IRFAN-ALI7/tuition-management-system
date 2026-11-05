@@ -7,7 +7,19 @@ import type { FormEvent } from "react";
 type RecipientType = "ALL_STUDENTS" | "BATCH_WISE" | "SINGLE_STUDENT";
 
 type NoticeBatch = { _id: string; name: string };
-type NoticeStudent = { _id: string; name: string; phone: string };
+type NoticeStudent = {
+  _id: string;
+  name: string;
+  phone: string;
+  profilePhoto?: string;
+};
+
+type StudentOption = {
+  _id: string;
+  name: string;
+  phone: string;
+  profilePhoto?: string;
+};
 
 type Notice = {
   _id: string;
@@ -18,8 +30,6 @@ type Notice = {
   studentId: NoticeStudent | null;
   createdAt: string;
 };
-
-type StudentOption = { _id: string; name: string; phone: string };
 
 const API =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
@@ -663,31 +673,50 @@ export function NoticesManagement({
                   />
 
                   {selectedStudent && (
-                    <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                          Selected Student
-                        </p>
-                        <p className="mt-1 break-words text-sm font-semibold text-emerald-900 dark:text-emerald-200">
-                          {selectedStudent.name}
-                        </p>
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                          {selectedStudent.phone}
-                        </p>
-                      </div>
+<div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+  <div className="flex min-w-0 items-center gap-3">
+    {selectedStudent.profilePhoto ? (
+      <img
+        src={selectedStudent.profilePhoto}
+        alt={`${selectedStudent.name} profile`}
+        className="h-12 w-12 shrink-0 rounded-full border border-emerald-200 object-cover dark:border-emerald-800"
+      />
+    ) : (
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200 text-sm font-bold text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+        {selectedStudent.name
+          .trim()
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((part) => part.charAt(0).toUpperCase())
+          .join("") || "S"}
+      </span>
+    )}
 
-                      <button
-                        type="button"
-                        className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/50"
-                        onClick={() => {
-                          setSelectedStudent(null);
-                          setStudentSearch("");
-                          setStudentOptions([]);
-                        }}
-                      >
-                        Change
-                      </button>
-                    </div>
+    <div className="min-w-0">
+      <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+        Selected Student
+      </p>
+      <p className="mt-1 break-words text-sm font-semibold text-emerald-900 dark:text-emerald-200">
+        {selectedStudent.name}
+      </p>
+      <p className="text-xs text-emerald-700 dark:text-emerald-400">
+        {selectedStudent.phone}
+      </p>
+    </div>
+  </div>
+
+  <button
+    type="button"
+    className="shrink-0 rounded-lg px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/50"
+    onClick={() => {
+      setSelectedStudent(null);
+      setStudentSearch("");
+      setStudentOptions([]);
+    }}
+  >
+    Change
+  </button>
+</div>
                   )}
 
                   {searchingStudents && (
@@ -707,32 +736,54 @@ export function NoticesManagement({
 
                   {!searchingStudents && studentOptions.length > 0 && (
                     <div className="mt-3 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-                      {studentOptions.map((student) => (
-                        <button
-                          type="button"
-                          key={student._id}
-                          className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-blue-50 dark:border-slate-800 dark:hover:bg-slate-800"
-                          onClick={() => {
-                            setSelectedStudent(student);
-                            setStudentSearch(
-                              `${student.name} · ${student.phone}`
-                            );
-                            setStudentOptions([]);
-                          }}
-                        >
-                          <span className="min-w-0">
-                            <span className="block break-words text-sm font-semibold text-slate-800 dark:text-slate-100">
-                              {student.name}
-                            </span>
-                            <span className="mt-0.5 block text-xs text-slate-500">
-                              {student.phone}
-                            </span>
-                          </span>
-                          <span className="shrink-0 text-xs font-semibold text-blue-600">
-                            Select
-                          </span>
-                        </button>
-                      ))}
+{studentOptions.map((student) => {
+  const initials = student.name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+
+  return (
+    <button
+      type="button"
+      key={student._id}
+      className="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-blue-50 dark:border-slate-800 dark:hover:bg-slate-800"
+      onClick={() => {
+        setSelectedStudent(student);
+        setStudentSearch(`${student.name} · ${student.phone}`);
+        setStudentOptions([]);
+      }}
+    >
+      <span className="flex min-w-0 items-center gap-3">
+        {student.profilePhoto ? (
+          <img
+            src={student.profilePhoto}
+            alt={`${student.name} profile`}
+            className="h-11 w-11 shrink-0 rounded-full border border-slate-200 object-cover dark:border-slate-700"
+          />
+        ) : (
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+            {initials || "S"}
+          </span>
+        )}
+
+        <span className="min-w-0">
+          <span className="block break-words text-sm font-semibold text-slate-800 dark:text-slate-100">
+            {student.name}
+          </span>
+          <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">
+            {student.phone}
+          </span>
+        </span>
+      </span>
+
+      <span className="shrink-0 text-xs font-semibold text-blue-600 dark:text-blue-400">
+        Select
+      </span>
+    </button>
+  );
+})}
                     </div>
                   )}
 

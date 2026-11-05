@@ -275,6 +275,7 @@ export async function getFees(
                 name: "$student.name",
                 phone: "$student.phone",
                 className: "$student.className",
+                profilePhoto: "$student.profilePhoto",
               },
               batch: {
                 _id: "$batch._id",

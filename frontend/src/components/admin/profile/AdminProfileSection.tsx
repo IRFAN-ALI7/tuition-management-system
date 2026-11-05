@@ -1,9 +1,9 @@
-
 "use client";
 
 import Image from "next/image";
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { api } from "@/lib/api";
 import type { AdminProfile } from "../shared/types";
 
 type ProfileDraft = {
@@ -69,16 +69,28 @@ export default function AdminProfileSection({
 
   const displayImage = adminProfile?.image || profileDraft.image;
 
-  const currentEmail = (adminProfile?.email ?? "").trim().toLowerCase();
+  const currentEmail = (adminProfile?.email ?? "")
+    .trim()
+    .toLowerCase();
+
   const draftEmail = profileDraft.email.trim().toLowerCase();
 
-  const emailIsVerified =
-    (Boolean(adminProfile?.emailVerified) && draftEmail === currentEmail) ||
+  const emailChanged = draftEmail !== currentEmail;
+
+  const emailIsVerified = emailChanged
+    ? Boolean(verifiedEmailForDraft) &&
+      draftEmail === verifiedEmailForDraft.trim().toLowerCase()
+    : Boolean(adminProfile?.emailVerified);
+
+  // Unchanged email does not require OTP.
+  const emailReadyToSave =
+    !emailChanged ||
     (Boolean(verifiedEmailForDraft) &&
       draftEmail === verifiedEmailForDraft.trim().toLowerCase());
 
   const otpSentForCurrentEmail =
     Boolean(draftEmail) &&
+    emailChanged &&
     emailVerificationSentFor.toLowerCase() === draftEmail &&
     !emailIsVerified;
 
@@ -94,9 +106,38 @@ export default function AdminProfileSection({
   const inputClass =
     "w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-950 dark:text-white";
 
+  // Always load the original saved profile when opening Edit Profile.
+  const openEdit = () => {
+    setProfileDraft({
+      name: adminProfile?.name ?? "",
+      phone: adminProfile?.phone ?? "",
+      email: adminProfile?.email ?? "",
+      image: adminProfile?.image ?? "",
+    });
+
+    setEmailOtp("");
+    setEditOpen(true);
+  };
+
+  // Cancel discards all local changes and server-side pending verification.
   const closeEdit = () => {
     setEditOpen(false);
+
+    setProfileDraft({
+      name: adminProfile?.name ?? "",
+      phone: adminProfile?.phone ?? "",
+      email: adminProfile?.email ?? "",
+      image: adminProfile?.image ?? "",
+    });
+
     setEmailOtp("");
+
+    void api("/auth/admin/profile/email/cancel", {
+      method: "POST",
+    }).catch(() => {
+      // Local changes are discarded even if the request fails.
+      // The backend still requires a fresh OTP for any changed email.
+    });
   };
 
   const handleSaveProfile = async () => {
@@ -104,7 +145,10 @@ export default function AdminProfileSection({
 
     try {
       await onSave();
-      closeEdit();
+
+      // Do not call closeEdit here.
+      // The final save already clears pending verification.
+      setEditOpen(false);
     } catch {
       // Error notification is handled by the profile hook.
     } finally {
@@ -134,12 +178,16 @@ export default function AdminProfileSection({
     }
 
     if (newPassword.length < 12) {
-      setPasswordError("New password must contain at least 12 characters.");
+      setPasswordError(
+        "New password must contain at least 12 characters.",
+      );
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError("New password and confirm password do not match.");
+      setPasswordError(
+        "New password and confirm password do not match.",
+      );
       return;
     }
 
@@ -161,7 +209,9 @@ export default function AdminProfileSection({
       setPasswordOpen(false);
     } catch (error) {
       setPasswordError(
-        error instanceof Error ? error.message : "Could not change password.",
+        error instanceof Error
+          ? error.message
+          : "Could not change password.",
       );
     } finally {
       setPasswordLoading(false);
@@ -179,7 +229,10 @@ export default function AdminProfileSection({
     setShowConfirm(false);
   };
 
-  const updateDraft = (key: keyof ProfileDraft, value: string) => {
+  const updateDraft = (
+    key: keyof ProfileDraft,
+    value: string,
+  ) => {
     setProfileDraft({
       ...profileDraft,
       [key]: value,
@@ -358,6 +411,7 @@ export default function AdminProfileSection({
                   </span>
                 ) : (
                   <span className="col-start-2 mt-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700 sm:col-start-auto sm:mt-0 dark:bg-amber-950 dark:text-amber-400">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
                     Not verified
                   </span>
                 )}
@@ -392,7 +446,7 @@ export default function AdminProfileSection({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => setEditOpen(true)}
+                onClick={openEdit}
                 className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
               >
                 <svg
@@ -503,7 +557,9 @@ export default function AdminProfileSection({
                   maxLength={100}
                   className={inputClass}
                   value={profileDraft.name}
-                  onChange={(event) => updateDraft("name", event.target.value)}
+                  onChange={(event) =>
+                    updateDraft("name", event.target.value)
+                  }
                 />
               </label>
 
@@ -515,7 +571,9 @@ export default function AdminProfileSection({
                   maxLength={30}
                   className={inputClass}
                   value={profileDraft.phone}
-                  onChange={(event) => updateDraft("phone", event.target.value)}
+                  onChange={(event) =>
+                    updateDraft("phone", event.target.value)
+                  }
                 />
               </label>
 
@@ -537,7 +595,12 @@ export default function AdminProfileSection({
                     }}
                   />
 
-                  {emailIsVerified ? (
+                  {!emailChanged && adminProfile?.emailVerified ? (
+                    <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full bg-green-100 px-3 py-2 text-xs font-semibold text-green-700 dark:bg-green-950 dark:text-green-400 sm:self-auto">
+                      <span className="h-2 w-2 rounded-full bg-green-500" />
+                      Verified
+                    </span>
+                  ) : emailChanged && emailIsVerified ? (
                     <span className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full bg-green-100 px-3 py-2 text-xs font-semibold text-green-700 dark:bg-green-950 dark:text-green-400 sm:self-auto">
                       <span className="h-2 w-2 rounded-full bg-green-500" />
                       Verified
@@ -547,10 +610,13 @@ export default function AdminProfileSection({
                       type="button"
                       disabled={
                         emailVerificationLoading ||
+                        !emailChanged ||
                         !draftEmail ||
                         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draftEmail)
                       }
-                      onClick={() => void handleRequestEmailVerification()}
+                      onClick={() =>
+                        void handleRequestEmailVerification()
+                      }
                       className="shrink-0 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {emailVerificationLoading
@@ -560,9 +626,15 @@ export default function AdminProfileSection({
                   )}
                 </div>
 
-                {!emailIsVerified && (
+                {emailChanged && !emailIsVerified && (
                   <p className="text-xs text-gray-500">
-                    Verify your email address before saving your profile.
+                    Verify your new email address before saving your profile.
+                  </p>
+                )}
+
+                {!emailChanged && !adminProfile?.emailVerified && (
+                  <p className="text-xs text-gray-500">
+                    Your existing email is unchanged. OTP is not required.
                   </p>
                 )}
               </div>
@@ -578,7 +650,10 @@ export default function AdminProfileSection({
                     Verification code sent to {profileDraft.email}
                   </p>
 
-                  <form onSubmit={onVerifyEmail} className="mt-3 space-y-3">
+                  <form
+                    onSubmit={onVerifyEmail}
+                    className="mt-3 space-y-3"
+                  >
                     <input
                       inputMode="numeric"
                       autoComplete="one-time-code"
@@ -587,7 +662,9 @@ export default function AdminProfileSection({
                       className={inputClass}
                       value={emailOtp}
                       onChange={(event) =>
-                        setEmailOtp(event.target.value.replace(/\D/g, ""))
+                        setEmailOtp(
+                          event.target.value.replace(/\D/g, ""),
+                        )
                       }
                     />
 
@@ -611,7 +688,7 @@ export default function AdminProfileSection({
                 </div>
               )}
 
-              {emailIsVerified && (
+              {emailIsVerified && emailChanged && (
                 <p className="rounded-lg bg-green-50 px-3 py-2 text-xs font-medium text-green-700 dark:bg-green-950/40 dark:text-green-400">
                   Email verified successfully. You can now save your profile.
                 </p>
@@ -629,7 +706,7 @@ export default function AdminProfileSection({
 
               <button
                 type="button"
-                disabled={profileLoading || !emailIsVerified}
+                disabled={profileLoading || !emailReadyToSave}
                 onClick={() => void handleSaveProfile()}
                 className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -706,8 +783,12 @@ export default function AdminProfileSection({
                     <input
                       required
                       type={field.visible ? "text" : "password"}
-                      autoComplete="current-password"
-                      className={`${inputClass} pr-16`}
+                      autoComplete={
+                        field.label === "Current Password"
+                          ? "current-password"
+                          : "new-password"
+                      }
+                      className={`${inputClass} pr-12`}
                       value={field.value}
                       onChange={(event) =>
                         field.setValue(event.target.value)
@@ -716,10 +797,54 @@ export default function AdminProfileSection({
 
                     <button
                       type="button"
-                      onClick={() => field.setVisible(!field.visible)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-blue-600"
+                      onClick={() =>
+                        field.setVisible(!field.visible)
+                      }
+                      aria-label={
+                        field.visible
+                          ? `Hide ${field.label}`
+                          : `Show ${field.label}`
+                      }
+                      title={
+                        field.visible
+                          ? "Hide password"
+                          : "Show password"
+                      }
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-500 transition hover:bg-gray-100 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-blue-400"
                     >
-                      {field.visible ? "Hide" : "Show"}
+                      {field.visible ? (
+                        // Eye-off icon
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          className="h-5 w-5"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M3 3l18 18" />
+                          <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                          <path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c5.2 0 8.5 4.2 9.5 7-.4 1.1-1.2 2.4-2.4 3.5" />
+                          <path d="M6.2 6.2C3.8 7.7 2.5 10 2 12c1 2.8 4.3 7 10 7 1.2 0 2.3-.2 3.3-.6" />
+                        </svg>
+                      ) : (
+                        // Eye icon
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          className="h-5 w-5"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
                     </button>
                   </span>
                 </label>

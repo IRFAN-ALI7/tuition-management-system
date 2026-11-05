@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -96,9 +97,33 @@ export default function RoleLogin({ role }: { role: Role }) {
 
   const admin = role === "admin";
 
+  const clearAdminForm = () => {
+    if (!admin) return;
+
+    setIdentifier("");
+    setPassword("");
+    setError("");
+    setShowPassword(false);
+    setLoading(false);
+  };
+
   useEffect(() => {
     clearRole();
-  }, [clearRole]);
+
+    if (!admin) return;
+
+    clearAdminForm();
+
+    const handlePageShow = () => {
+      clearAdminForm();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [admin, clearRole]);
 
   useEffect(() => {
     if (!showStudentHelp) return;
@@ -121,7 +146,10 @@ export default function RoleLogin({ role }: { role: Role }) {
       const response = await fetch(`${API}/auth/login`, {
         method: "POST",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           identifier: identifier.trim(),
           password,
@@ -133,8 +161,17 @@ export default function RoleLogin({ role }: { role: Role }) {
 
       if (!response.ok) {
         throw new Error(
-          data.error ?? "Sign in failed. Please try again."
+          data.error ??
+            data.message ??
+            `Sign in failed (HTTP ${response.status}). Please check the backend response.`,
         );
+      }
+
+      if (admin) {
+        setIdentifier("");
+        setPassword("");
+        setShowPassword(false);
+        setError("");
       }
 
       router.replace(admin ? "/admin" : "/student");
@@ -143,7 +180,7 @@ export default function RoleLogin({ role }: { role: Role }) {
       setError(
         cause instanceof Error
           ? cause.message
-          : "Sign in failed. Please try again."
+          : "Sign in failed. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -155,8 +192,6 @@ export default function RoleLogin({ role }: { role: Role }) {
 
   return (
     <main className="relative isolate flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-[#fcfbff] via-[#f8f5ff] to-[#f1eaff] px-4 text-[#111b49] sm:px-6 lg:px-8">
-
-      {/* Background */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_80%_12%,#e6dcff9c_0%,transparent_42%),radial-gradient(ellipse_at_0%_85%,#dfd1ff75_0%,transparent_35%)]"
@@ -167,7 +202,6 @@ export default function RoleLogin({ role }: { role: Role }) {
         className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 hidden h-32 bg-gradient-to-r from-[#e5d8ff] via-[#d8c4ff] to-[#e8d9ff] [clip-path:polygon(0_35%,15%_55%,32%_78%,50%_82%,68%_65%,85%_40%,100%_20%,100%_100%,0_100%)] lg:block"
       />
 
-      {/* Header: desktop and tablet */}
       <header className="relative z-10 mx-auto hidden h-[82px] w-full max-w-[1240px] shrink-0 items-center justify-between border-b border-[#e8e1ff] sm:flex">
         <Link
           href="/"
@@ -200,10 +234,7 @@ export default function RoleLogin({ role }: { role: Role }) {
         </Link>
       </header>
 
-      {/* Main layout */}
       <section className="relative z-10 mx-auto grid w-full max-w-[1240px] flex-1 grid-cols-1 items-center gap-7 py-5 sm:py-7 lg:grid-cols-[0.95fr_1.05fr] lg:gap-12 lg:py-8 xl:gap-16">
-
-        {/* Left content: hidden on phones */}
         <div className="hidden min-w-0 flex-col justify-center lg:flex">
           <div className="mb-5 inline-flex w-fit items-center gap-2.5 rounded-full border border-[#dfd2ff] bg-[#eee7ff]/90 px-4 py-2 text-[14px] font-bold text-[#37208f]">
             <Icon name="graduation" className="size-5" />
@@ -225,7 +256,6 @@ export default function RoleLogin({ role }: { role: Role }) {
               : "Access your attendance, fees, exams and learning progress — all in one place."}
           </p>
 
-          {/* Study illustration */}
           <div className="relative mt-4 h-[290px] w-full max-w-[520px] xl:h-[340px]">
             <Image
               src="/udaan-study-hero.png"
@@ -238,10 +268,7 @@ export default function RoleLogin({ role }: { role: Role }) {
           </div>
         </div>
 
-        {/* Login card */}
         <div className="flex w-full flex-col items-center lg:items-end">
-
-          {/* Back to Home: mobile only */}
           <Link
             href="/"
             className="mb-4 inline-flex min-h-[42px] w-full max-w-[510px] items-center gap-2 rounded-xl border border-[#d9caff] bg-white/90 px-4 text-[13px] font-semibold text-[#653bd7] shadow-sm transition duration-200 hover:bg-[#f8f4ff] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#7950ed] sm:hidden"
@@ -251,8 +278,6 @@ export default function RoleLogin({ role }: { role: Role }) {
           </Link>
 
           <section className="w-full max-w-[510px] rounded-[24px] border border-[#e8defe] bg-white/95 px-5 py-7 shadow-[0_16px_48px_#5c3caa14,0_3px_12px_#7450d109] backdrop-blur-sm transition-shadow duration-300 sm:rounded-[27px] sm:px-9 sm:py-8 lg:px-10 lg:py-9">
-
-            {/* Card icon */}
             <div className="mx-auto mb-4 flex size-[66px] items-center justify-center rounded-[20px] border border-[#e4d7ff] bg-gradient-to-br from-[#f5efff] to-[#eee6ff] text-[#7543ed] shadow-[0_6px_18px_#7d4ce912] sm:size-[72px]">
               {admin ? (
                 <span className="text-[32px] font-semibold">▦</span>
@@ -271,7 +296,6 @@ export default function RoleLogin({ role }: { role: Role }) {
               </p>
             </div>
 
-            {/* Login error */}
             {error && (
               <div
                 role="alert"
@@ -288,7 +312,6 @@ export default function RoleLogin({ role }: { role: Role }) {
               className="grid gap-[18px]"
               onSubmit={(event) => void submit(event)}
             >
-              {/* Mobile number */}
               <label
                 htmlFor="login-mobile"
                 className="grid gap-2 text-[14px] font-bold text-[#171d48]"
@@ -308,7 +331,7 @@ export default function RoleLogin({ role }: { role: Role }) {
                     id="login-mobile"
                     name="identifier"
                     className={inputClass}
-                    autoComplete="tel"
+                    autoComplete={admin ? "off" : "tel"}
                     inputMode="numeric"
                     maxLength={15}
                     required
@@ -320,7 +343,6 @@ export default function RoleLogin({ role }: { role: Role }) {
                 </span>
               </label>
 
-              {/* Password */}
               <label
                 htmlFor="login-password"
                 className="grid gap-2 text-[14px] font-bold text-[#171d48]"
@@ -340,7 +362,7 @@ export default function RoleLogin({ role }: { role: Role }) {
                     id="login-password"
                     name="password"
                     className={`${inputClass} pr-[52px]`}
-                    autoComplete="current-password"
+                    autoComplete={admin ? "off" : "current-password"}
                     required
                     type={showPassword ? "text" : "password"}
                     value={password}
@@ -362,7 +384,6 @@ export default function RoleLogin({ role }: { role: Role }) {
                 </span>
               </label>
 
-              {/* Sign in */}
               <button
                 className="relative mt-1 flex min-h-[54px] w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#8041ef] via-[#7543eb] to-[#6234dc] px-5 text-[15px] font-bold text-white shadow-[0_9px_20px_#7442e82c] transition duration-200 hover:-translate-y-0.5 hover:brightness-105 hover:shadow-[0_12px_24px_#7442e840] active:translate-y-0 disabled:cursor-wait disabled:opacity-70"
                 disabled={loading}
@@ -375,7 +396,6 @@ export default function RoleLogin({ role }: { role: Role }) {
               </button>
             </form>
 
-            {/* Forgot password */}
             <div className="mt-4 text-center">
               {admin ? (
                 <Link
@@ -401,13 +421,11 @@ export default function RoleLogin({ role }: { role: Role }) {
         </div>
       </section>
 
-      {/* Footer: desktop and tablet */}
       <footer className="relative z-10 mx-auto hidden min-h-[48px] w-full max-w-[1240px] items-center justify-between border-t border-[#e8e1ff] text-[12px] text-[#77769a] sm:flex">
         <span>© Udaan Learning Centre</span>
         <span>Curiosity today. Confidence tomorrow.</span>
       </footer>
 
-      {/* Student forgot-password alert */}
       {showStudentHelp && (
         <div className="pointer-events-none fixed inset-x-0 top-4 z-[100] flex justify-center px-3 sm:top-5 sm:px-4">
           <div

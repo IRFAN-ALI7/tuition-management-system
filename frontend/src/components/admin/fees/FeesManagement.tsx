@@ -1,6 +1,7 @@
 
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 
 import FeeFilters from "./FeeFilters";
@@ -228,9 +229,9 @@ export function FeesManagement({
 
   // Year dropdown options
   const yearOptions = Array.from(
-  { length: 10 },
-  (_, index) => now.getFullYear() - index,
-);
+    { length: 10 },
+    (_, index) => now.getFullYear() - index,
+  );
 
   // Pagination
   const pageCount = Math.max(1, pagination.totalPages);
@@ -255,15 +256,14 @@ export function FeesManagement({
     <section className="min-w-0 space-y-6">
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Fees Management
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Track monthly fees, payments and outstanding balances
-          </p>
-        </div>
+            <div className="mb-6 w-full text-center">
+  <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+    Fees Management
+  </h1>
+  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+    Track monthly fees, payments and outstanding balances
+  </p>
+</div>
 
         <button
           type="button"
@@ -369,35 +369,15 @@ export function FeesManagement({
             aria-labelledby="fee-details-title"
             onClick={(event) => event.stopPropagation()}
           >
-            {/* Modal header */}
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 sm:px-6 sm:py-4">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600 sm:text-xs">
-                  Student Account
-                </p>
-
-                <h2
-                  id="fee-details-title"
-                  className="mt-1 text-lg font-bold tracking-tight text-slate-900 sm:text-2xl"
-                >
-                  Monthly fee details
-                </h2>
-
-                <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
-                  Student fee account and payment history
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className={closeButtonClass}
-                aria-label="Close student fee details"
-                onClick={closeDetails}
-              >
-                ×
-              </button>
-            </div>
-
+                   {/* Modal header */}
+<div className="flex shrink-0 items-center justify-center border-b border-slate-100 bg-white px-4 py-4 sm:py-5">
+  <h2
+    id="fee-details-title"
+    className="text-center text-lg font-bold tracking-tight text-slate-900 sm:text-2xl"
+  >
+    Monthly fee details
+  </h2>
+</div>
             {/* Modal body */}
             <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-4 sm:px-6 sm:py-5">
               {detailsLoading ? (
@@ -433,9 +413,22 @@ export function FeesManagement({
                     <section className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-4 sm:p-5">
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex min-w-0 items-center gap-3">
-                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-lg font-bold text-white shadow-sm sm:h-14 sm:w-14 sm:text-xl">
-                            {details.student.name.slice(0, 1).toUpperCase()}
-                          </span>
+                          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-600 text-lg font-bold text-white shadow-sm sm:h-14 sm:w-14 sm:text-xl">
+                            {details.student.profilePhoto ? (
+                              <Image
+                                src={details.student.profilePhoto}
+                                alt={`${details.student.name} profile photo`}
+                                fill
+                                sizes="56px"
+                                unoptimized
+                                className="object-cover"
+                              />
+                            ) : (
+                              details.student.name
+                                .slice(0, 1)
+                                .toUpperCase()
+                            )}
+                          </div>
 
                           <div className="min-w-0">
                             <h3 className="break-words text-base font-bold text-slate-900 sm:text-xl">

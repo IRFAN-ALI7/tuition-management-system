@@ -124,7 +124,6 @@ export default function Home() {
     studentIds: [],
   });
 
-  // Admin Profile Hook
   const {
     adminProfile,
     setAdminProfile,
@@ -454,28 +453,26 @@ export default function Home() {
   };
 
   const handleLogout = async () => {
-    setPageError("");
-    setNotice("");
+  setPageError("");
+  setNotice("");
 
-    try {
-      await api("/auth/logout", {
-        method: "POST",
-      });
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api"}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    });
+  } catch {
+    // Continue local logout even if the API request fails.
+  } finally {
+    // Keep the loading screen visible until login navigation completes.
+    setAuthChecking(true);
+    clearRole();
 
-      clearRole();
-      setAuthenticated(false);
-      setAdminProfile(null);
-
-      router.replace("/admin/login");
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Could not log out. Please try again.",
-      );
-    }
-  };
-
+    router.replace("/admin/login");
+    router.refresh();
+  }
+};
   return (
     <main
       className={`min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 ${
@@ -506,33 +503,36 @@ export default function Home() {
           />
 
           <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
-            {![
-              "Dashboard",
-              "Fees",
-              "Notices",
-              "Students",
-              "Classes & Batches",
-              "Tests & Results",
-            ].includes(section) && (
-              <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                <div className="mb-6 flex w-full items-center justify-center">
-                  <h1 className="text-center text-xl font-bold text-gray-900 dark:text-white">
-                    Take attendance
-                  </h1>
-                </div>
+              {![
+  "Dashboard",
+  "Fees",
+  "Notices",
+  "Students",
+  "Classes & Batches",
+  "Tests & Results",
+  "Settings",
+].includes(section) && (
+  <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+    {section === "Attendance" && (
+      <>
+        <div className="flex w-full items-center justify-center">
+          <h1 className="text-center text-xl font-bold text-gray-900 dark:text-white">
+            Take attendance
+          </h1>
+        </div>
 
-                {section === "Attendance" && (
-                  <button
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
-                    onClick={() =>
-                      document.getElementById("attendance-date")?.focus()
-                    }
-                  >
-                    ▦ Today ⌄
-                  </button>
-                )}
-              </div>
-            )}
+        <button
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
+          onClick={() =>
+            document.getElementById("attendance-date")?.focus()
+          }
+        >
+          ▦ Today ⌄
+        </button>
+      </>
+    )}
+  </div>
+)}
 
             {pageError && (
               <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
@@ -740,7 +740,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Batch Create / Edit Modal */}
       {batchModal && (
         <BatchEditorModal
           editingBatch={editingBatch}
@@ -755,7 +754,6 @@ export default function Home() {
         />
       )}
 
-      {/* Student Edit Modal */}
       {studentEditing && (
         <StudentEditorModal
           student={studentEditing}

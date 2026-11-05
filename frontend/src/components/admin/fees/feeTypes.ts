@@ -9,10 +9,11 @@ export type FeeStudent = {
   name: string;
   phone: string;
   className?: string;
+  profilePhoto?: string;
   monthlyFees?: number | null;
   active?: boolean;
   fatherName?: string;
-admissionDate?: string;
+  admissionDate?: string;
 };
 
 export type FeeRow = {
@@ -55,10 +56,10 @@ export type FeePayment = {
   createdAt?: string;
   actualPaymentDate?: string;
   receiptDetails?: {
-  totalDue: number;
-  totalPaid: number;
-  remainingDue: number;
-};
+    totalDue: number;
+    totalPaid: number;
+    remainingDue: number;
+  };
 };
 
 export type UnpaidMonth = FeeAllocation & {

@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -51,156 +52,207 @@ export default function StudentProfileHeader({
   date,
   prettyTime,
 }: Props) {
+  const information = [
+    {
+      label: "Father's Name",
+      value: student.fatherName || "—",
+    },
+    {
+      label: "Phone Number",
+      value: student.phone || "—",
+    },
+    {
+      label: "Address",
+      value: student.address || "—",
+    },
+    {
+      label: "Gender",
+      value: student.gender || "—",
+    },
+    {
+      label: "Class",
+      value: student.className || "—",
+    },
+    {
+      label: "Batch",
+      value: student.batchId ? student.batchId.name : "Unassigned",
+      extra: student.batchId
+        ? `${prettyTime(student.batchId.startTime)} – ${prettyTime(
+            student.batchId.endTime
+          )}`
+        : "",
+    },
+    {
+      label: "Admission Date",
+      value: date(student.admissionDate || student.createdAt),
+    },
+    {
+      label: "Monthly Fees",
+      value:
+        typeof student.monthlyFees === "number"
+          ? money(student.monthlyFees)
+          : "—",
+    },
+  ];
+
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-7">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-center gap-4">
-          {student.profilePhoto ? (
-            <Image
-              className="h-[88px] w-[88px] shrink-0 rounded-2xl object-cover ring-4 ring-indigo-50 dark:ring-indigo-950"
-              src={student.profilePhoto}
-              alt={student.name}
-              width={88}
-              height={88}
-              unoptimized
-            />
-          ) : (
-            <span className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-3xl font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-              {student.name.slice(0, 1).toUpperCase()}
-            </span>
-          )}
+    <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6 lg:p-7">
+      {/* Profile identity */}
+      <div className="flex min-w-0 items-center gap-4">
+        {student.profilePhoto ? (
+          <Image
+            className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-4 ring-indigo-50 dark:ring-indigo-950 sm:h-20 sm:w-20"
+            src={student.profilePhoto}
+            alt={student.name}
+            width={80}
+            height={80}
+            unoptimized
+          />
+        ) : (
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-2xl font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 sm:h-20 sm:w-20 sm:text-3xl">
+            {student.name.slice(0, 1).toUpperCase()}
+          </span>
+        )}
 
-          <div className="min-w-0">
-            <div className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400">
-              Student Profile
-            </div>
+        <div className="min-w-0">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-600 dark:text-indigo-400 sm:text-xs">
+            Student Profile
+          </p>
 
-            <h1 className="break-words text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-              {student.name}
-            </h1>
+          <h1 className="break-words text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
+            {student.name}
+          </h1>
 
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {student.studentId || "Student ID unavailable"}
-            </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+            {student.studentId || "Student ID unavailable"}
+          </p>
 
-            <span
-              className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${
-                student.active
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                  : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300"
-              }`}
-            >
-              {student.active ? "Active" : "Inactive"}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex shrink-0 flex-wrap items-center gap-3 sm:justify-end">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={student.active}
-            aria-label="Toggle student account status"
-            disabled={statusUpdating}
-            onClick={onToggleStatus}
-            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${
+          <span
+            className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold sm:text-xs ${
               student.active
-                ? "bg-green-500"
-                : "bg-slate-300 dark:bg-slate-600"
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300"
             }`}
           >
             <span
-              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${
-                student.active ? "translate-x-5" : "translate-x-0.5"
+              className={`h-1.5 w-1.5 rounded-full ${
+                student.active ? "bg-emerald-500" : "bg-rose-500"
               }`}
             />
-          </button>
-
-          <button
-            type="button"
-            className={buttonClass}
-            onClick={onResetPassword}
-          >
-            Reset Password
-          </button>
-
-          <button
-            className="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={onEdit}
-          >
-            Edit Student
-          </button>
-
-          <button
-            className="inline-flex items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
-            onClick={onDelete}
-            disabled={deleting}
-          >
-            {deleting ? "Deleting..." : "Delete Student"}
-          </button>
+            {student.active ? "Active" : "Inactive"}
+          </span>
         </div>
       </div>
 
-      <dl className="mt-7 grid grid-cols-1 gap-4 border-t border-slate-100 pt-6 dark:border-slate-800 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Father's name", value: student.fatherName || "—" },
-          { label: "Phone number", value: student.phone || "—" },
-          { label: "Address", value: student.address || "—" },
-          { label: "Gender", value: student.gender || "—" },
-          { label: "Class", value: student.className || "—" },
-        ].map((item) => (
-          <div
-            key={item.label}
-            className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60"
+      {/* All actions in one row */}
+      <div className="mt-5 grid grid-cols-[40px_minmax(0,1.45fr)_minmax(0,0.75fr)_minmax(0,0.8fr)] items-center gap-2 sm:mt-6 sm:flex sm:gap-3">
+        {/* Status toggle */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={student.active}
+          aria-label="Toggle student account status"
+          title={student.active ? "Deactivate" : "Activate"}
+          disabled={statusUpdating}
+          onClick={onToggleStatus}
+          className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50 sm:h-7 sm:w-12 ${
+            student.active
+              ? "bg-emerald-500"
+              : "bg-slate-300 dark:bg-slate-600"
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 sm:h-6 sm:w-6 ${
+              student.active
+                ? "translate-x-[18px] sm:translate-x-[22px]"
+                : "translate-x-0.5"
+            }`}
+          />
+        </button>
+
+        {/* Reset Password */}
+        <button
+          type="button"
+          className={`${buttonClass} min-w-0 whitespace-nowrap px-1.5 py-2 text-[10px] sm:px-4 sm:py-2.5 sm:text-sm`}
+          onClick={onResetPassword}
+        >
+          Reset Password
+        </button>
+
+        {/* Edit */}
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex min-w-0 items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-1.5 py-2 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-950 sm:px-5 sm:py-2.5 sm:text-sm"
+        >
+          Edit
+        </button>
+
+        {/* Delete */}
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={deleting}
+          className="inline-flex min-w-0 items-center justify-center rounded-xl bg-rose-600 px-1.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 sm:py-2.5 sm:text-sm"
+        >
+          {deleting ? "..." : "Delete"}
+        </button>
+      </div>
+
+      {/* Student information */}
+      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-3 bg-indigo-50/80 px-4 py-3 dark:bg-indigo-950/40 sm:px-5">
+          <svg
+            className="h-6 w-6 shrink-0 text-indigo-600 dark:text-indigo-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
           >
-            <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              {item.label}
-            </dt>
-            <dd className="mt-1 break-words text-sm font-semibold text-slate-800 dark:text-slate-100">
-              {item.value}
-            </dd>
-          </div>
-        ))}
+            <circle cx="12" cy="8" r="4" />
+            <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+          </svg>
 
-        <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
-          <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Batch
-          </dt>
-          <dd className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
-            {student.batchId ? (
-              <>
-                {student.batchId.name}
-                <small className="mt-1 block font-normal text-slate-500 dark:text-slate-400">
-                  {prettyTime(student.batchId.startTime)} –{" "}
-                  {prettyTime(student.batchId.endTime)}
-                </small>
-              </>
-            ) : (
-              "Unassigned"
-            )}
-          </dd>
+          <h2 className="text-base font-bold text-slate-900 dark:text-white sm:text-lg">
+            Student Information
+          </h2>
         </div>
 
-        <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
-          <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Admission date
-          </dt>
-          <dd className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
-            {date(student.admissionDate || student.createdAt)}
-          </dd>
-        </div>
+        <dl className="grid grid-cols-2 divide-x divide-slate-200 px-3 py-3 dark:divide-slate-800 sm:px-5 sm:py-4">
+          {[information.slice(0, 4), information.slice(4, 8)].map(
+            (column, columnIndex) => (
+              <div
+                key={columnIndex}
+                className="min-w-0 space-y-4 px-2 sm:space-y-5 sm:px-4"
+              >
+                {column.map((item) => (
+                  <div
+                    key={item.label}
+                    className="grid min-w-0 grid-cols-1 gap-1"
+                  >
+                    <dt className="text-[10px] font-medium text-slate-500 dark:text-slate-400 sm:text-sm">
+                      {item.label}
+                    </dt>
 
-        <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
-          <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Monthly fees
-          </dt>
-          <dd className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">
-            {typeof student.monthlyFees === "number"
-              ? money(student.monthlyFees)
-              : "—"}
-          </dd>
-        </div>
-      </dl>
+                    <dd className="break-words text-xs font-semibold text-slate-900 [overflow-wrap:anywhere] dark:text-slate-100 sm:text-sm">
+                      {item.value}
+                    </dd>
+
+                    {"extra" in item && item.extra && (
+                      <dd className="text-[9px] text-slate-500 dark:text-slate-400 sm:text-xs">
+                        {item.extra}
+                      </dd>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </dl>
+      </div>
     </section>
   );
 }

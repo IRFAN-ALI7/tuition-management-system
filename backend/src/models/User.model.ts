@@ -30,6 +30,13 @@ const userSchema = new Schema(
       select: false,
     },
 
+    // New email verification is pending until final profile save.
+    pendingEmailVerified: {
+      type: Boolean,
+      default: false,
+      select: false,
+    },
+
     emailOtpHash: {
       type: String,
       select: false,

@@ -1,5 +1,6 @@
-
 "use client";
+
+import NextImage from "next/image";
 
 import {
   money,
@@ -135,8 +136,28 @@ export default function FeeTable({
                       `STU${row.student._id.slice(-6).toUpperCase()}`}
                   </td>
 
-                  <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">
-                    {row.student.name}
+                  {/* Student name with profile photo */}
+                  <td className="px-4 py-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-50 text-sm font-semibold text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+                        {row.student.profilePhoto ? (
+                          <NextImage
+                            src={row.student.profilePhoto}
+                            alt={`${row.student.name} profile photo`}
+                            fill
+                            sizes="36px"
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          row.student.name.slice(0, 1).toUpperCase()
+                        )}
+                      </div>
+
+                      <strong className="min-w-0 break-words text-slate-900 dark:text-slate-100">
+                        {row.student.name}
+                      </strong>
+                    </div>
                   </td>
 
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
@@ -222,6 +243,7 @@ export default function FeeTable({
         <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-end">
           <label className="flex items-center gap-2 text-xs text-slate-600 sm:text-sm dark:text-slate-300">
             Rows per page
+
             <select
               className="rounded-md border border-slate-300 bg-white px-2 py-1.5 dark:border-slate-700 dark:bg-slate-900"
               value={limit}

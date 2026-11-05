@@ -422,17 +422,11 @@ export function ExamsManagement({ batches }: { batches: BatchOption[] }) {
 
   return (
     <section className="min-w-0 space-y-6 text-slate-800 dark:text-slate-100">
-      {/* PAGE HEADER */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Exams Management
-          </h1>
-
-          <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
-            Schedule tests, record marks and review student progress.
-          </p>
-        </div>
+                  {/* PAGE HEADER */}
+      <div className="flex w-full flex-col items-center justify-center gap-4">
+        <h1 className="text-center text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+          Exams Management
+        </h1>
 
         <button
           className={`${primaryButtonClass} w-full sm:w-auto`}
