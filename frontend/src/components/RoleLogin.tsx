@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -93,63 +92,53 @@ export default function RoleLogin({ role }: { role: Role }) {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
   const [showStudentHelp, setShowStudentHelp] = useState(false);
 
   const admin = role === "admin";
 
-  // Verify the real server session before displaying the login form.
-  const checkExistingSession = async () => {
-    try {
-      const response = await fetch(`${API}/auth/session`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          "Cache-Control": "no-cache",
-        },
-      });
-
-      if (!response.ok) {
-        clearRole();
-        setCheckingSession(false);
-        return;
-      }
-
-      const data = await response.json();
-      const activeRole = data?.user?.role;
-
-      if (activeRole !== "admin" && activeRole !== "student") {
-        clearRole();
-        setCheckingSession(false);
-        return;
-      }
-
-      if (activeRole === role) {
-        activateRole(activeRole);
-        router.replace(activeRole === "admin" ? "/admin" : "/student");
-        router.refresh();
-        return;
-      }
-
-      // A different role is already logged in.
-      clearRole();
-      setCheckingSession(false);
-    } catch {
-      clearRole();
-      setCheckingSession(false);
-    }
-  };
-
   useEffect(() => {
     let mounted = true;
 
-    const verify = async () => {
-      if (!mounted) return;
-      await checkExistingSession();
-    };
+    async function checkExistingSession() {
+      try {
+        const response = await fetch(`${API}/auth/session`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+          },
+        });
 
-    void verify();
+        if (!response.ok) {
+          if (mounted) clearRole();
+          return;
+        }
+
+        const data = await response.json();
+        const activeRole = data?.user?.role;
+
+        if (
+          activeRole !== "admin" &&
+          activeRole !== "student"
+        ) {
+          if (mounted) clearRole();
+          return;
+        }
+
+        if (activeRole === role && mounted) {
+          activateRole(activeRole);
+          router.replace(
+            activeRole === "admin" ? "/admin" : "/student",
+          );
+          router.refresh();
+        }
+      } catch {
+        if (mounted) clearRole();
+      }
+    }
+
+    void checkExistingSession();
 
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
@@ -158,8 +147,7 @@ export default function RoleLogin({ role }: { role: Role }) {
         setError("");
         setShowPassword(false);
         setLoading(false);
-        setCheckingSession(true);
-        void verify();
+        void checkExistingSession();
       }
     };
 
@@ -169,8 +157,7 @@ export default function RoleLogin({ role }: { role: Role }) {
       mounted = false;
       window.removeEventListener("pageshow", handlePageShow);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [role]);
+  }, [role, activateRole, clearRole, router]);
 
   useEffect(() => {
     if (!showStudentHelp) return;
@@ -220,16 +207,13 @@ export default function RoleLogin({ role }: { role: Role }) {
         );
       }
 
-      // Activate the correct role after successful authentication.
       activateRole(role);
 
-      // Clear both fields for admin and student login.
       setIdentifier("");
       setPassword("");
       setShowPassword(false);
       setError("");
 
-      // Redirect only to the dashboard matching the login role.
       router.replace(admin ? "/admin" : "/student");
       router.refresh();
     } catch (cause) {
@@ -245,22 +229,6 @@ export default function RoleLogin({ role }: { role: Role }) {
 
   const inputClass =
     "h-[54px] w-full rounded-xl border border-[#e7e2f1] bg-white pl-[52px] pr-4 text-[15px] text-[#20264f] outline-none transition duration-200 placeholder:text-[#a09eb2] hover:border-[#d5c8f5] focus:border-[#7950ed] focus:ring-4 focus:ring-[#7950ed]/10";
-
-  if (checkingSession) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#fcfbff] via-[#f8f5ff] to-[#f1eaff] px-4 text-[#111b49]">
-        <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#6c45f1] to-[#815bf1] text-3xl text-white shadow-lg">
-          ✳
-        </div>
-
-        <div className="mt-6 size-8 animate-spin rounded-full border-4 border-[#e6dcff] border-t-[#7543eb]" />
-
-        <p className="mt-4 text-sm font-semibold text-[#6252a0]">
-          Checking your session...
-        </p>
-      </main>
-    );
-  }
 
   return (
     <main className="relative isolate flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-[#fcfbff] via-[#f8f5ff] to-[#f1eaff] px-4 text-[#111b49] sm:px-6 lg:px-8">
