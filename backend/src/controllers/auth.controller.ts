@@ -6,6 +6,15 @@ import type { AuthRequest } from "../middleware/authenticate";
 
 import User from "../models/User.model";
 
+const isProduction = process.env.NODE_ENV === "production";
+
+const sessionCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: (isProduction ? "none" : "strict") as "none" | "strict",
+  maxAge: 12 * 60 * 60 * 1000,
+};
+
 // ADMIN AND STUDENT LOGIN
 export async function login(
   request: Request,
@@ -79,12 +88,7 @@ export async function login(
       { expiresIn: "12h" }
     );
 
-    response.cookie("session", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 12 * 60 * 60 * 1000,
-    });
+    response.cookie("session", token, sessionCookieOptions);
 
     response.json({
       user: {
@@ -120,8 +124,8 @@ export async function logout(
 
     response.clearCookie("session", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "strict",
     });
 
     response.status(204).end();
