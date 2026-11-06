@@ -175,12 +175,6 @@ function monthLabel(month?: number, year?: number) {
     });
 }
 
-function getGreeting(hour: number) {
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-}
-
 function SummaryCard({
   title,
   value,
@@ -329,13 +323,102 @@ function LoadingDashboard() {
   );
 }
 
+function GraduationIllustration() {
+  return (
+    <svg
+      viewBox="0 0 240 170"
+      className="h-full w-full"
+      fill="none"
+      role="img"
+      aria-label="Graduation cap resting on books"
+    >
+      <ellipse cx="123" cy="151" rx="105" ry="12" fill="#6D28D9" opacity=".25" />
+
+      {/* Bottom book */}
+      <path
+        d="M31 112 143 88l73 23-111 29-74-28Z"
+        fill="#E0E7FF"
+      />
+      <path
+        d="m31 112 74 28v11l-74-28v-11Z"
+        fill="#C7D2FE"
+      />
+      <path
+        d="m105 140 111-29v11l-111 29v-11Z"
+        fill="#A5B4FC"
+      />
+
+      {/* Middle book */}
+      <path
+        d="m29 91 112-27 76 24-112 29-76-26Z"
+        fill="#FDE68A"
+      />
+      <path
+        d="m29 91 76 26v11L29 102V91Z"
+        fill="#FBBF24"
+      />
+      <path
+        d="m105 117 112-29v11l-112 29v-11Z"
+        fill="#F59E0B"
+      />
+
+      {/* Top book */}
+      <path
+        d="m37 75 104-25 67 22-105 27-66-24Z"
+        fill="#F8FAFC"
+      />
+      <path
+        d="m37 75 66 24v9L37 84v-9Z"
+        fill="#CBD5E1"
+      />
+      <path
+        d="m103 99 105-27v9l-105 27v-9Z"
+        fill="#94A3B8"
+      />
+
+      {/* Graduation cap */}
+      <path
+        d="m26 48 91-37 99 37-94 38-96-38Z"
+        fill="#312E81"
+      />
+      <path
+        d="m55 59 67 27 67-27v21c-38 26-96 26-134 0V59Z"
+        fill="#4C1D95"
+      />
+      <path
+        d="m117 11 99 37-94 38-96-38 91-37Z"
+        fill="#4338CA"
+      />
+      <path
+        d="m117 11 99 37-94 38-96-38 91-37Z"
+        fill="#312E81"
+        opacity=".35"
+      />
+
+      {/* Tassel */}
+      <path
+        d="m216 48-3 45"
+        stroke="#FACC15"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+      <circle cx="213" cy="97" r="5" fill="#FACC15" />
+      <path
+        d="m213 102-5 13m5-13 5 13m-5-13v14"
+        stroke="#FACC15"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export default function StudentDashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const [today] = useState(() => new Date());
-
 
   useEffect(() => {
     let cancelled = false;
@@ -423,7 +506,6 @@ export default function StudentDashboardPage() {
       ? Math.min(100, (paidAmount / feeAmount) * 100)
       : 0;
 
-  const greeting = today ? getGreeting(today.getHours()) : "Welcome";
   const dateLabel = today
     ? today.toLocaleDateString("en-IN", {
         weekday: "short",
@@ -452,42 +534,84 @@ export default function StudentDashboardPage() {
         </div>
       )}
 
-      {/* Welcome */}
-      <section className="relative isolate overflow-hidden rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-50 via-white to-indigo-50 p-5 dark:border-violet-900/40 dark:from-violet-950/50 dark:via-slate-900 dark:to-indigo-950/40 sm:p-7">
-        <div className="pointer-events-none absolute -right-12 -top-20 h-52 w-52 rounded-full bg-violet-200/40 blur-3xl dark:bg-violet-700/10" />
+      {/* Welcome Banner */}
+      <section className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-r from-violet-700 via-purple-700 to-fuchsia-600 px-4 py-5 shadow-sm sm:px-6 sm:py-6 lg:px-8">
+        {/* Decorative background shapes */}
+        <div className="pointer-events-none absolute -right-10 -top-24 h-64 w-64 rounded-full bg-fuchsia-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 right-1/4 h-52 w-52 rounded-full bg-indigo-300/20 blur-3xl" />
 
-        <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300 sm:text-xs">
-              Udaan Learning Centre
-            </p>
+        <div className="pointer-events-none absolute bottom-0 right-0 hidden h-full w-[38%] overflow-hidden sm:block">
+          <div className="absolute -bottom-16 right-8 h-44 w-64 rounded-full bg-fuchsia-400/20 blur-2xl" />
+          <div className="absolute bottom-0 right-0 h-full w-full opacity-20">
+            <svg viewBox="0 0 420 190" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+              <path
+                d="M0 170C70 100 140 150 205 95S330 30 420 90V190H0Z"
+                fill="#C4B5FD"
+              />
+            </svg>
+          </div>
+        </div>
 
-            <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-3xl lg:text-4xl">
-              {greeting},{" "}
-              <span className="text-violet-700 dark:text-violet-400">
-                {student?.name || "Student"}!
-              </span>
-            </h1>
+        <div className="relative flex min-h-[150px] items-center justify-between gap-3 sm:min-h-[145px] sm:gap-5 lg:min-h-[150px]">
+          {/* Left icon and divider */}
+          <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4 lg:gap-6">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white shadow-lg sm:h-16 sm:w-16 sm:rounded-3xl lg:h-[76px] lg:w-[76px]">
+              <svg
+                viewBox="0 0 64 64"
+                className="h-9 w-9 text-violet-700 sm:h-11 sm:w-11 lg:h-12 lg:w-12"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M5 23 32 10l27 13-27 13L5 23Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M15 29v12c10 8 24 8 34 0V29L32 39 15 29Z"
+                  fill="currentColor"
+                  opacity=".8"
+                />
+                <path
+                  d="M59 24v17"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+                <circle cx="59" cy="44" r="3" fill="currentColor" />
+              </svg>
+            </div>
 
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 sm:text-base">
-              Here&apos;s your learning overview.
-            </p>
+            <div className="h-16 w-px shrink-0 bg-white/30 sm:h-[76px]" />
 
-            {dateLabel && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-violet-100 bg-white/80 px-3 py-2 text-xs font-semibold text-violet-800 shadow-sm dark:border-violet-900/50 dark:bg-slate-900/70 dark:text-violet-300 sm:text-sm">
-                <Icon name="calendar" className="h-4 w-4" />
-                {dateLabel}
-              </div>
-            )}
+            {/* Banner text */}
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-violet-100 sm:text-[10px] sm:tracking-[0.2em] lg:text-xs">
+                Udaan Learning Centre
+              </p>
+
+              <h1 className="mt-2 text-xl font-extrabold leading-tight tracking-tight text-white sm:text-2xl md:text-3xl lg:text-4xl">
+                Welcome Back,{" "}
+                <span className="text-yellow-300">
+                  {student?.name || "Student"}!
+                </span>
+              </h1>
+
+              <p className="mt-2 max-w-[560px] text-[11px] leading-relaxed text-violet-100 sm:text-xs md:text-sm lg:text-base">
+                Your journey to success starts with every new day of learning.
+              </p>
+
+              {dateLabel && (
+                <div className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full bg-white px-3 py-2 text-[10px] font-bold text-violet-950 shadow-md sm:mt-4 sm:px-4 sm:text-xs lg:text-sm">
+                  <Icon name="calendar" className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{dateLabel}</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="hidden h-28 w-28 shrink-0 items-center justify-center rounded-full bg-violet-100/80 text-violet-600 dark:bg-violet-900/30 dark:text-violet-300 sm:flex lg:h-32 lg:w-32">
-            <svg viewBox="0 0 120 120" className="h-20 w-20 lg:h-24 lg:w-24" fill="none">
-              <path d="M15 65 60 45l45 20-45 20-45-20Z" fill="currentColor" opacity=".9" />
-              <path d="M30 72v17c17 12 43 12 60 0V72L60 86 30 72Z" fill="currentColor" opacity=".65" />
-              <path d="M60 45V20m0 0 25 11-25 11" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M60 20 15 40l45 20 45-20-45-20Z" fill="currentColor" opacity=".35" />
-            </svg>
+          {/* Graduation cap and books illustration */}
+          <div className="relative hidden h-[135px] w-[170px] shrink-0 sm:block md:h-[150px] md:w-[190px] lg:h-[160px] lg:w-[220px]">
+            <GraduationIllustration />
           </div>
         </div>
       </section>
@@ -496,7 +620,11 @@ export default function StudentDashboardPage() {
       <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <SummaryCard
           title="Attendance"
-          value={attendancePercentage === null ? "—" : `${attendancePercentage.toFixed(1)}%`}
+          value={
+            attendancePercentage === null
+              ? "—"
+              : `${attendancePercentage.toFixed(1)}%`
+          }
           description={
             total > 0
               ? `${present} of ${total} classes attended`
@@ -651,7 +779,9 @@ export default function StudentDashboardPage() {
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <Icon name="receipt" className="h-5 w-5 shrink-0" />
-                  <span className="truncate">View fee details & payment history</span>
+                  <span className="truncate">
+                    View fee details & payment history
+                  </span>
                 </span>
 
                 <Icon name="arrow" className="h-5 w-5 shrink-0" />

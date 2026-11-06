@@ -1,8 +1,6 @@
-
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 
 import authRoutes from "./routes/auth.routes";
 import batchRoutes from "./routes/batch.routes";
@@ -44,17 +42,6 @@ app.use((request, response, next) => {
 
   return standardJsonParser(request, response, next);
 });
-
-// Authentication rate limiter
-app.use(
-  "/api/auth",
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 30,
-    standardHeaders: true,
-    legacyHeaders: false,
-  }),
-);
 
 // Health check
 app.get("/api/health", (_request, response) => {

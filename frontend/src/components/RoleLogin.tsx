@@ -86,37 +86,91 @@ function Icon({
 
 export default function RoleLogin({ role }: { role: Role }) {
   const router = useRouter();
-  const { clearRole } = useTheme();
+  const { activateRole, clearRole } = useTheme();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [showStudentHelp, setShowStudentHelp] = useState(false);
 
   const admin = role === "admin";
 
+  // Verify the real server session before displaying the login form.
+  const checkExistingSession = async () => {
+    try {
+      const response = await fetch(`${API}/auth/session`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+        },
+      });
 
-     useEffect(() => {
-    clearRole();
+      if (!response.ok) {
+        clearRole();
+        setCheckingSession(false);
+        return;
+      }
 
-    if (!admin) return;
+      const data = await response.json();
+      const activeRole = data?.user?.role;
 
-    const handlePageShow = () => {
-      setIdentifier("");
-      setPassword("");
-      setError("");
-      setShowPassword(false);
-      setLoading(false);
+      if (activeRole !== "admin" && activeRole !== "student") {
+        clearRole();
+        setCheckingSession(false);
+        return;
+      }
+
+      if (activeRole === role) {
+        activateRole(activeRole);
+        router.replace(activeRole === "admin" ? "/admin" : "/student");
+        router.refresh();
+        return;
+      }
+
+      // A different role is already logged in.
+      clearRole();
+      setCheckingSession(false);
+    } catch {
+      clearRole();
+      setCheckingSession(false);
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+
+    const verify = async () => {
+      if (!mounted) return;
+      await checkExistingSession();
+    };
+
+    void verify();
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setIdentifier("");
+        setPassword("");
+        setError("");
+        setShowPassword(false);
+        setLoading(false);
+        setCheckingSession(true);
+        void verify();
+      }
     };
 
     window.addEventListener("pageshow", handlePageShow);
 
     return () => {
+      mounted = false;
       window.removeEventListener("pageshow", handlePageShow);
     };
-  }, [admin, clearRole]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   useEffect(() => {
     if (!showStudentHelp) return;
@@ -153,20 +207,29 @@ export default function RoleLogin({ role }: { role: Role }) {
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error(
+            "Too many login attempts. Please wait a few minutes before trying again.",
+          );
+        }
+
         throw new Error(
           data.error ??
             data.message ??
-            `Sign in failed (HTTP ${response.status}). Please check the backend response.`,
+            `Sign in failed (HTTP ${response.status}). Please try again.`,
         );
       }
 
-      if (admin) {
-        setIdentifier("");
-        setPassword("");
-        setShowPassword(false);
-        setError("");
-      }
+      // Activate the correct role after successful authentication.
+      activateRole(role);
 
+      // Clear both fields for admin and student login.
+      setIdentifier("");
+      setPassword("");
+      setShowPassword(false);
+      setError("");
+
+      // Redirect only to the dashboard matching the login role.
       router.replace(admin ? "/admin" : "/student");
       router.refresh();
     } catch (cause) {
@@ -182,6 +245,22 @@ export default function RoleLogin({ role }: { role: Role }) {
 
   const inputClass =
     "h-[54px] w-full rounded-xl border border-[#e7e2f1] bg-white pl-[52px] pr-4 text-[15px] text-[#20264f] outline-none transition duration-200 placeholder:text-[#a09eb2] hover:border-[#d5c8f5] focus:border-[#7950ed] focus:ring-4 focus:ring-[#7950ed]/10";
+
+  if (checkingSession) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#fcfbff] via-[#f8f5ff] to-[#f1eaff] px-4 text-[#111b49]">
+        <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#6c45f1] to-[#815bf1] text-3xl text-white shadow-lg">
+          ✳
+        </div>
+
+        <div className="mt-6 size-8 animate-spin rounded-full border-4 border-[#e6dcff] border-t-[#7543eb]" />
+
+        <p className="mt-4 text-sm font-semibold text-[#6252a0]">
+          Checking your session...
+        </p>
+      </main>
+    );
+  }
 
   return (
     <main className="relative isolate flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-[#fcfbff] via-[#f8f5ff] to-[#f1eaff] px-4 text-[#111b49] sm:px-6 lg:px-8">
@@ -201,10 +280,7 @@ export default function RoleLogin({ role }: { role: Role }) {
           aria-label="Udaan Learning Centre home"
           className="flex items-center gap-3 no-underline"
         >
-          <span
-            className="flex size-12 items-center justify-center rounded-[15px] bg-gradient-to-br from-[#6c45f1] to-[#815bf1] text-[27px] text-white shadow-[0_6px_16px_#7650e52b]"
-            aria-hidden="true"
-          >
+          <span className="flex size-12 items-center justify-center rounded-[15px] bg-gradient-to-br from-[#6c45f1] to-[#815bf1] text-[27px] text-white shadow-[0_6px_16px_#7650e52b]">
             ✳
           </span>
 
@@ -324,7 +400,7 @@ export default function RoleLogin({ role }: { role: Role }) {
                     id="login-mobile"
                     name="identifier"
                     className={inputClass}
-                    autoComplete={admin ? "off" : "tel"}
+                    autoComplete="off"
                     inputMode="numeric"
                     maxLength={15}
                     required
@@ -355,7 +431,7 @@ export default function RoleLogin({ role }: { role: Role }) {
                     id="login-password"
                     name="password"
                     className={`${inputClass} pr-[52px]`}
-                    autoComplete={admin ? "off" : "current-password"}
+                    autoComplete="off"
                     required
                     type={showPassword ? "text" : "password"}
                     value={password}

@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
@@ -82,11 +81,11 @@ export default function useAdminWorkspace({
 
       const nextBatches = await refreshBatches();
 
-      const active = nextBatches.filter((item) => item.active);
+      const activeBatches = nextBatches.filter((item) => item.active);
 
       const chosen =
-        active.find((item) => item._id === batchId) ??
-        active[0] ??
+        activeBatches.find((item) => item._id === batchId) ??
+        activeBatches[0] ??
         nextBatches[0];
 
       setBatchId(chosen?._id ?? "");
@@ -95,13 +94,15 @@ export default function useAdminWorkspace({
         await loadAttendance(chosen._id, selectedDate);
       }
 
-      setAdminProfile(profileResult.profile as AdminProfile);
+      const profile = profileResult.profile as AdminProfile;
+
+      setAdminProfile(profile);
 
       setProfileDraft({
-        name: profileResult.profile.name,
-        phone: profileResult.profile.phone,
-        email: profileResult.profile.email,
-        image: profileResult.profile.image,
+        name: profile.name,
+        phone: profile.phone,
+        email: profile.email,
+        image: profile.image,
       });
     } catch (error) {
       setPageError(
@@ -111,6 +112,9 @@ export default function useAdminWorkspace({
       );
     } finally {
       setLoading(false);
+
+      // Release the initial screen only after workspace loading finishes.
+      setAuthChecking(false);
     }
   };
 
@@ -120,6 +124,8 @@ export default function useAdminWorkspace({
     const initialDate = todayISO();
 
     const dateTimer = window.setTimeout(() => {
+      if (!active) return;
+
       setDate(initialDate);
 
       setTodayLabel(
@@ -142,11 +148,11 @@ export default function useAdminWorkspace({
       );
     }, 0);
 
-    // Keep the checking screen visible until navigation completes.
-    // Do not render the signed-out workspace screen during redirect.
     const redirectToLogin = () => {
       if (!active) return;
 
+      setAuthenticated(false);
+      clearRole();
       router.replace("/admin/login");
     };
 
@@ -179,9 +185,9 @@ export default function useAdminWorkspace({
 
         activateRole("admin");
         setAuthenticated(true);
-        setAuthChecking(false);
 
-        void loadWorkspace(initialDate);
+        // Keep authChecking true until all initial dashboard data is ready.
+        await loadWorkspace(initialDate);
       } catch {
         redirectToLogin();
       }

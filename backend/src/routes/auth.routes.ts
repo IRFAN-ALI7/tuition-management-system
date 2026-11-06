@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 
 import {
   otpRequestLimit,
@@ -29,32 +30,46 @@ import {
 
 const router = Router();
 
+// Apply the login-attempt limit only to login requests.
+// Session checks, logout and profile requests do not consume this limit.
+const loginRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_request, response) => {
+    response.status(429).json({
+      error: "Too many login attempts. Please wait a few minutes before trying again.",
+    });
+  },
+});
+
 // ADMIN FORGOT PASSWORD: REQUEST OTP
 router.post(
   "/password-reset/request",
   otpRequestLimit,
-  requestPasswordReset
+  requestPasswordReset,
 );
 
 // ADMIN FORGOT PASSWORD: RESEND OTP
 router.post(
   "/password-reset/resend",
   otpRequestLimit,
-  resendPasswordResetOtp
+  resendPasswordResetOtp,
 );
 
 // ADMIN FORGOT PASSWORD: VERIFY OTP
 router.post(
   "/password-reset/verify",
   otpVerifyLimit,
-  verifyPasswordResetOtp
+  verifyPasswordResetOtp,
 );
 
 // ADMIN FORGOT PASSWORD: SET NEW PASSWORD
 router.post(
   "/password-reset/complete",
   otpVerifyLimit,
-  completePasswordReset
+  completePasswordReset,
 );
 
 // ADMIN PROFILE
@@ -62,7 +77,7 @@ router.get(
   "/admin/profile",
   requireAuth,
   requireAdmin,
-  getAdminProfile
+  getAdminProfile,
 );
 
 // UPDATE ADMIN PROFILE - FINAL SAVE ONLY
@@ -70,7 +85,7 @@ router.patch(
   "/admin/profile",
   requireAuth,
   requireAdmin,
-  updateAdminProfile
+  updateAdminProfile,
 );
 
 // REQUEST OTP FOR NEW PROFILE EMAIL
@@ -79,7 +94,7 @@ router.post(
   requireAuth,
   requireAdmin,
   profileOtpLimit,
-  requestAdminProfileEmailOtp
+  requestAdminProfileEmailOtp,
 );
 
 // CANCEL PENDING PROFILE EMAIL VERIFICATION
@@ -87,7 +102,7 @@ router.post(
   "/admin/profile/email/cancel",
   requireAuth,
   requireAdmin,
-  cancelAdminProfileEmailVerification
+  cancelAdminProfileEmailVerification,
 );
 
 // CHANGE ADMIN PASSWORD
@@ -95,7 +110,7 @@ router.post(
   "/admin/change-password",
   requireAuth,
   requireAdmin,
-  changeAdminPassword
+  changeAdminPassword,
 );
 
 // RESEND ADMIN PROFILE EMAIL VERIFICATION OTP
@@ -104,7 +119,7 @@ router.post(
   requireAuth,
   requireAdmin,
   profileOtpLimit,
-  resendAdminProfileEmailOtp
+  resendAdminProfileEmailOtp,
 );
 
 // VERIFY ADMIN PROFILE EMAIL
@@ -113,11 +128,11 @@ router.post(
   requireAuth,
   requireAdmin,
   otpVerifyLimit,
-  verifyAdminProfileEmail
+  verifyAdminProfileEmail,
 );
 
 // ADMIN AND STUDENT LOGIN
-router.post("/login", login);
+router.post("/login", loginRateLimit, login);
 
 // LOGOUT
 router.post("/logout", requireAuth, logout);
