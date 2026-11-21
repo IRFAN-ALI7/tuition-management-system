@@ -12,7 +12,12 @@ export async function sendEmail(to: string, subject: string, html: string) {
     response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ to, subject, html }),
+       body: JSON.stringify({
+             to,
+               subject,
+                 html,
+               senderName: process.env.EMAIL_SENDER_NAME || "Udaan Learning Centre",
+           }),
       signal: AbortSignal.timeout(12_000),
     });
   } catch {

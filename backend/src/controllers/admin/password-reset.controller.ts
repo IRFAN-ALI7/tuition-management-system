@@ -1,6 +1,5 @@
-
 import type { Request, Response, NextFunction } from "express";
-import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 
@@ -12,14 +11,64 @@ import {
   sendAdminPasswordOtp,
 } from "../../services/email.service";
 
-const otpRequestLimit = rateLimit({
+/* ------------------------------------------------------------------ */
+/* Settings                                                            */
+/* ------------------------------------------------------------------ */
+
+const OTP_TTL_MS = 10 * 60 * 1000;
+const RESET_TTL_MS = 10 * 60 * 1000;
+const RESEND_COOLDOWN_MS = 60 * 1000;
+const MAX_OTP_ATTEMPTS = 5;
+
+const MIN_PASSWORD_LENGTH = 12;
+const MAX_PASSWORD_BYTES = 72; // bcrypt only uses the first 72 bytes
+
+/**
+ * false (recommended): the same message is shown whether or not the email exists,
+ * so outsiders cannot find out which email belongs to the admin.
+ * true: shows a clear "no admin account found" message for unknown emails.
+ */
+const REVEAL_UNKNOWN_EMAIL = true;
+
+/* ------------------------------------------------------------------ */
+/* Messages                                                            */
+/* ------------------------------------------------------------------ */
+
+const MESSAGES = {
+  otpSent:
+     "A verification code has been sent. Please check your inbox or spam folder.",
+  unknownEmail:
+    "We couldn't find an admin account with this email address. Please check the email and try again.",
+  invalidEmail: "Please enter a valid email address.",
+  emailUnavailable:
+    "We couldn't send the verification email right now. Please try again in a few minutes or contact the tuition administrator.",
+  resetUnavailable:
+    "Password reset is temporarily unavailable. Please try again later or contact the tuition administrator.",
+  invalidCode:
+    "That code is incorrect or has expired. Codes are valid for 10 minutes and you have 5 attempts. " +
+    "Please request a new code and try again.",
+  invalidResetToken:
+    "Your reset session is invalid or has expired. Please verify a new code to continue.",
+  weakPassword: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
+  longPassword: `Password is too long. Please use at most ${MAX_PASSWORD_BYTES} characters.`,
+  resetSuccess:
+    "Your password has been reset successfully. Please log in with your new password.",
+  tooManyRequests:
+    "Too many password reset requests. Please wait 15 minutes and try again.",
+  tooManyAttempts:
+    "Too many verification attempts. Please wait 15 minutes and try again.",
+};
+
+/* ------------------------------------------------------------------ */
+/* Rate limiters                                                       */
+/* ------------------------------------------------------------------ */
+
+export const otpRequestLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  message: {
-    error: "Too many password reset requests. Please wait and try again.",
-  },
+  message: { error: MESSAGES.tooManyRequests },
 });
 
 export const otpVerifyLimit = rateLimit({
@@ -27,15 +76,12 @@ export const otpVerifyLimit = rateLimit({
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: {
-    error: "Too many verification attempts. Please wait and try again.",
-  },
+  message: { error: MESSAGES.tooManyAttempts },
 });
 
-const OTP_TTL_MS = 10 * 60 * 1000;
-const RESET_TTL_MS = 10 * 60 * 1000;
-const RESEND_COOLDOWN_MS = 60 * 1000;
-const MAX_OTP_ATTEMPTS = 5;
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
 
 const resetSecurityConfigured = () =>
   Boolean(process.env.PASSWORD_RESET_SECRET || process.env.JWT_SECRET);
@@ -55,29 +101,25 @@ function validEmail(email: string) {
 }
 
 function genericOtpReply(response: Response) {
-  response.status(202).json({
-    message:
-      "If an active admin account matches and email delivery is available, a verification code will arrive shortly.",
-  });
+  response.status(202).json({ message: MESSAGES.otpSent });
 }
 
-async function issueAdminOtp(
-  emailInput: unknown,
-  response: Response
-) {
+/* ------------------------------------------------------------------ */
+/* Send OTP (used by request + resend)                                 */
+/* ------------------------------------------------------------------ */
+
+async function issueAdminOtp(emailInput: unknown, response: Response) {
   const email =
     typeof emailInput === "string" ? emailInput.trim().toLowerCase() : "";
 
   if (!isEmailServiceConfigured() || !resetSecurityConfigured()) {
-    response.status(503).json({
-      error:
-        "Password reset email is temporarily unavailable. Please contact the tuition administrator.",
-    });
+    console.error("Password reset: email service or secret is not configured.");
+    response.status(503).json({ error: MESSAGES.emailUnavailable });
     return;
   }
 
   if (!validEmail(email)) {
-    genericOtpReply(response);
+    response.status(400).json({ error: MESSAGES.invalidEmail });
     return;
   }
 
@@ -88,6 +130,10 @@ async function issueAdminOtp(
   }).select("_id email");
 
   if (!user) {
+    if (REVEAL_UNKNOWN_EMAIL) {
+      response.status(404).json({ error: MESSAGES.unknownEmail });
+      return;
+    }
     genericOtpReply(response);
     return;
   }
@@ -99,6 +145,7 @@ async function issueAdminOtp(
   }).select("resendAvailableAt");
 
   if (previous && previous.resendAvailableAt.getTime() > now.getTime()) {
+    // Cooldown active: reply with the same generic message (it already mentions the 1-minute wait).
     genericOtpReply(response);
     return;
   }
@@ -166,10 +213,7 @@ export async function verifyPasswordResetOtp(
 ) {
   try {
     if (!resetSecurityConfigured()) {
-      response.status(503).json({
-        error:
-          "Password reset is temporarily unavailable. Please contact the tuition administrator.",
-      });
+      response.status(503).json({ error: MESSAGES.resetUnavailable });
       return;
     }
 
@@ -182,9 +226,7 @@ export async function verifyPasswordResetOtp(
       typeof request.body?.otp === "string" ? request.body.otp.trim() : "";
 
     const invalid = () =>
-      response.status(400).json({
-        error: "The code is invalid or expired. Request a new code and try again.",
-      });
+      response.status(400).json({ error: MESSAGES.invalidCode });
 
     if (!validEmail(email) || !/^\d{6}$/.test(otp)) {
       invalid();
@@ -227,21 +269,24 @@ export async function verifyPasswordResetOtp(
     );
 
     if (!record) {
-      const current = await PasswordReset.findOne({
-        userId: user._id,
-        otpExpiresAt: { $gt: now },
-        resetTokenHash: null,
-      });
+      // Wrong code: count the failed attempt atomically.
+      const current = await PasswordReset.findOneAndUpdate(
+        {
+          userId: user._id,
+          otpHash: { $ne: null },
+          otpExpiresAt: { $gt: now },
+          resetTokenHash: null,
+        },
+        { $inc: { attempts: 1 } },
+        { new: true }
+      );
 
-      if (current) {
-        current.attempts += 1;
-
-        if (current.attempts >= MAX_OTP_ATTEMPTS) {
-          current.otpHash = null;
-          current.otpExpiresAt = null;
-        }
-
-        await current.save();
+      // Too many wrong attempts: invalidate the code.
+      if (current && current.attempts >= MAX_OTP_ATTEMPTS) {
+        await PasswordReset.updateOne(
+          { _id: current._id },
+          { $set: { otpHash: null, otpExpiresAt: null } }
+        );
       }
 
       invalid();
@@ -265,10 +310,7 @@ export async function completePasswordReset(
 ) {
   try {
     if (!resetSecurityConfigured()) {
-      response.status(503).json({
-        error:
-          "Password reset is temporarily unavailable. Please contact the tuition administrator.",
-      });
+      response.status(503).json({ error: MESSAGES.resetUnavailable });
       return;
     }
 
@@ -278,29 +320,20 @@ export async function completePasswordReset(
         : "";
 
     const password =
-      typeof request.body?.password === "string"
-        ? request.body.password
-        : "";
+      typeof request.body?.password === "string" ? request.body.password : "";
 
     if (!/^[A-Za-z0-9_-]{40,60}$/.test(resetToken)) {
-      response.status(400).json({
-        error:
-          "The reset authorization is invalid or expired. Verify your code again.",
-      });
+      response.status(400).json({ error: MESSAGES.invalidResetToken });
       return;
     }
 
-    if (password.length < 12 || password.length > 128) {
-      response.status(400).json({
-        error: "Password must be between 12 and 128 characters.",
-      });
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      response.status(400).json({ error: MESSAGES.weakPassword });
       return;
     }
 
-    if (Buffer.byteLength(password, "utf8") > 72) {
-      response.status(400).json({
-        error: "Password must be no more than 72 UTF-8 bytes.",
-      });
+    if (Buffer.byteLength(password, "utf8") > MAX_PASSWORD_BYTES) {
+      response.status(400).json({ error: MESSAGES.longPassword });
       return;
     }
 
@@ -321,10 +354,7 @@ export async function completePasswordReset(
     );
 
     if (!record) {
-      response.status(400).json({
-        error:
-          "The reset authorization is invalid or expired. Verify your code again.",
-      });
+      response.status(400).json({ error: MESSAGES.invalidResetToken });
       return;
     }
 
@@ -349,17 +379,12 @@ export async function completePasswordReset(
     await PasswordReset.deleteOne({ userId: record.userId });
 
     if (!user) {
-      response.status(400).json({
-        error:
-          "The reset authorization is invalid or expired. Verify your code again.",
-      });
+      response.status(400).json({ error: MESSAGES.invalidResetToken });
       return;
     }
 
-    response.json({ message: "Password reset successfully." });
+    response.json({ message: MESSAGES.resetSuccess });
   } catch (error) {
     next(error);
   }
 }
-
-export { otpRequestLimit };

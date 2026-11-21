@@ -1,6 +1,19 @@
-
 const API =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+
+const REQUEST_TIMEOUT_MS = 20_000;
+
+const ERROR_MESSAGES = {
+  timeout:
+    "The server is taking too long to respond. Please check your internet connection and try again.",
+  network:
+    "Unable to connect to the server. Please check your internet connection and try again.",
+  unauthorized: "Your session has expired. Please log in again.",
+  forbidden: "You don't have permission to do this.",
+  tooManyRequests: "Too many attempts. Please wait a few minutes and try again.",
+  server: "Something went wrong on our side. Please try again in a moment.",
+  generic: "Request failed. Please try again.",
+};
 
 type CacheEntry = {
   data: unknown;
@@ -45,10 +58,15 @@ export function invalidateStudentApiCache(pathPrefix?: string) {
   }
 }
 
-export async function api(
-  path: string,
-  init: RequestInit = {},
-) {
+function fallbackMessage(status: number) {
+  if (status === 401) return ERROR_MESSAGES.unauthorized;
+  if (status === 403) return ERROR_MESSAGES.forbidden;
+  if (status === 429) return ERROR_MESSAGES.tooManyRequests;
+  if (status >= 500) return ERROR_MESSAGES.server;
+  return ERROR_MESSAGES.generic;
+}
+
+export async function api(path: string, init: RequestInit = {}) {
   const method = (init.method ?? "GET").toUpperCase();
   const shouldCache = isCacheableStudentRequest(path, method);
   const cacheKey = `${method}:${path}`;
@@ -68,14 +86,28 @@ export async function api(
   }
 
   const request = (async () => {
-    const response = await fetch(`${API}${path}`, {
-      ...init,
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...init.headers,
-      },
-    });
+    let response: Response;
+
+    try {
+      response = await fetch(`${API}${path}`, {
+        ...init,
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...init.headers,
+        },
+        signal: init.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (error) {
+      const isTimeout =
+        error instanceof DOMException &&
+        (error.name === "TimeoutError" || error.name === "AbortError");
+
+      throw Object.assign(
+        new Error(isTimeout ? ERROR_MESSAGES.timeout : ERROR_MESSAGES.network),
+        { details: {}, status: 0 },
+      );
+    }
 
     const data = await response.json().catch(() => ({}));
 
@@ -85,7 +117,7 @@ export async function api(
 
     if (!response.ok) {
       throw Object.assign(
-        new Error(data.error ?? "Request failed. Please try again."),
+        new Error(data.error ?? fallbackMessage(response.status)),
         { details: data, status: response.status },
       );
     }

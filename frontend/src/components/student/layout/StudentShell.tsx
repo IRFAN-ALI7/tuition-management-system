@@ -15,6 +15,8 @@ import StudentTopbar from "./StudentTopbar";
 const API =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 
+const LOGIN_PATH = "/student/login";
+
 interface StudentShellProps {
   children: ReactNode;
 }
@@ -93,20 +95,16 @@ export default function StudentShell({
 
   const { activateRole, clearRole } = useTheme();
 
-  const [checking, setChecking] = useState(
-    pathname !== "/student/login",
-  );
-  const [authorized, setAuthorized] = useState(false);
+  const isLoginPage = pathname === LOGIN_PATH;
 
+  const [authorized, setAuthorized] = useState(false);
   const [studentName, setStudentName] = useState("Student");
   const [studentPhoto, setStudentPhoto] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (pathname === "/student/login") {
-      setChecking(false);
-      return;
-    }
+    // Login page needs no session check.
+    if (isLoginPage) return;
 
     let mounted = true;
 
@@ -121,9 +119,7 @@ export default function StudentShell({
           clearRole();
 
           router.replace(
-            session.role === "admin"
-              ? "/admin"
-              : "/student/login",
+            session.role === "admin" ? "/admin" : LOGIN_PATH,
           );
 
           return;
@@ -131,7 +127,6 @@ export default function StudentShell({
 
         activateRole("student");
         setAuthorized(true);
-        setChecking(false);
 
         // Profile information is fetched only once per app session.
         try {
@@ -162,10 +157,9 @@ export default function StudentShell({
         if (!mounted) return;
 
         setAuthorized(false);
-        setChecking(false);
         clearStudentSessionCache();
         clearRole();
-        router.replace("/student/login");
+        router.replace(LOGIN_PATH);
       }
     }
 
@@ -174,7 +168,7 @@ export default function StudentShell({
     return () => {
       mounted = false;
     };
-  }, [pathname, activateRole, clearRole, router]);
+  }, [isLoginPage, activateRole, clearRole, router]);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -192,16 +186,16 @@ export default function StudentShell({
       setStudentName("Student");
       setStudentPhoto("");
 
-      router.replace("/student/login");
+      router.replace(LOGIN_PATH);
       router.refresh();
     }
   }, [clearRole, router]);
 
-  if (pathname === "/student/login") {
+  if (isLoginPage) {
     return <>{children}</>;
   }
 
-  if (checking || !authorized) {
+  if (!authorized) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="flex flex-col items-center gap-5 text-center">
