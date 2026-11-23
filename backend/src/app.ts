@@ -16,13 +16,42 @@ import { getSession } from "./controllers/auth.controller";
 
 const app = express();
 
+const isProduction = process.env.NODE_ENV === "production";
+
 app.disable("x-powered-by");
+
+// On Render / Railway / Vercel the app sits behind one proxy. Without this,
+// every visitor looks like the same IP and the rate limiters block everyone.
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
 
 app.use(helmet());
 
+// FRONTEND_ORIGIN can hold one URL or several, separated by commas.
+// Example: https://my-app.vercel.app,https://www.mydomain.com
+const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
+if (isProduction && !process.env.FRONTEND_ORIGIN) {
+  console.warn(
+    "FRONTEND_ORIGIN is not set. Browsers will not be able to call this API.",
+  );
+}
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:3000",
+    origin(origin, callback) {
+      // Requests without an Origin header (health checks, server to server).
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, allowedOrigins.includes(origin));
+    },
     credentials: true,
   }),
 );
@@ -43,6 +72,17 @@ app.use((request, response, next) => {
   return standardJsonParser(request, response, next);
 });
 
+// Private data must never be stored by the browser or a proxy.
+app.use("/api", (_request, response, next) => {
+  response.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+
+  next();
+});
+
 // Health check
 app.get("/api/health", (_request, response) => {
   response.json({
@@ -55,20 +95,7 @@ app.get("/api/health", (_request, response) => {
 app.use("/api/auth", authRoutes);
 
 // Auth session
-app.get(
-  "/api/auth/session",
-  (_request, response, next) => {
-    response.set({
-      "Cache-Control": "no-store, no-cache, must-revalidate, private",
-      Pragma: "no-cache",
-      Expires: "0",
-    });
-
-    next();
-  },
-  requireAuth,
-  getSession,
-);
+app.get("/api/auth/session", requireAuth, getSession);
 
 // Admin routes
 app.use("/api/batches", requireAuth, requireAdmin, batchRoutes);
@@ -134,9 +161,7 @@ app.use(
           ? details.message
           : "Unknown error",
       stack:
-        typeof details.stack === "string"
-          ? details.stack
-          : undefined,
+        typeof details.stack === "string" ? details.stack : undefined,
     });
 
     // Safe messages for JSON parser errors.

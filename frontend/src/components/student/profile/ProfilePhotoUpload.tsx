@@ -47,13 +47,13 @@ export default function ProfilePhotoUpload({
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-4 border-gray-100 bg-gray-100 dark:border-gray-800 dark:bg-gray-800">
         {preview ? (
-            <Image
+<Image
   src={preview}
   alt="Profile preview"
   width={96}
   height={96}
   unoptimized
-  className="h-full w-full object-cover"
+  className="size-24 object-cover"
 />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-gray-400">

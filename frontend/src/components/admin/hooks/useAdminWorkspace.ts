@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 
-import { api, API } from "@/lib/api";
+import { api } from "@/lib/api";
 
 import type { Batch, AdminProfile } from "@/components/admin/shared/types";
 
@@ -18,7 +18,8 @@ type Props = {
   refreshBatches: () => Promise<Batch[]>;
   refreshStudents: () => Promise<unknown>;
   loadDashboardFees: (date?: string) => Promise<void>;
-  loadAttendance: (id: string, date: string) => Promise<void>;
+  // Attendance is now loaded by the Attendance section, not at start-up.
+  loadAttendance?: (id: string, date: string) => Promise<void>;
 
   setBatchId: Dispatch<SetStateAction<string>>;
   setDate: Dispatch<SetStateAction<string>>;
@@ -37,6 +38,8 @@ type Props = {
   clearRole: () => void;
 };
 
+type Outcome = "ready" | "signed-out" | "failed";
+
 const todayISO = () => {
   const d = new Date();
 
@@ -46,77 +49,119 @@ const todayISO = () => {
   )}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-export default function useAdminWorkspace({
-  batchId,
-  refreshBatches,
-  refreshStudents,
-  loadDashboardFees,
-  loadAttendance,
-  setBatchId,
-  setDate,
-  setTodayLabel,
-  setGreeting,
-  setAdminProfile,
-  setProfileDraft,
-  setAuthenticated,
-  setAuthChecking,
-  setLoading,
-  setPageError,
-  activateRole,
-  clearRole,
-}: Props) {
+const messageOf = (reason: unknown) =>
+  reason instanceof Error && reason.message
+    ? reason.message
+    : "Could not load the workspace.";
+
+const statusOf = (result: PromiseSettledResult<unknown>) =>
+  result.status === "rejected"
+    ? (result.reason as { status?: number } | null)?.status
+    : undefined;
+
+/**
+ * Starts every request the dashboard needs AT THE SAME TIME.
+ * One round trip instead of a long chain, so the screen opens much faster.
+ * The profile request is admin-only, so it also proves the session is valid.
+ */
+function requestWorkspaceData(p: Props, selectedDate: string) {
+  return Promise.allSettled([
+    p.refreshBatches(),
+    p.refreshStudents(),
+    api("/auth/admin/profile"),
+    p.loadDashboardFees(selectedDate),
+  ]);
+}
+
+function applyWorkspaceData(
+  results: PromiseSettledResult<unknown>[],
+  p: Props,
+): Outcome {
+  // Not signed in, session expired, or not an admin.
+  if (
+    results.some((result) => {
+      const status = statusOf(result);
+      return status === 401 || status === 403;
+    })
+  ) {
+    return "signed-out";
+  }
+
+  const [batchesResult, , profileResult] = results;
+
+  const firstFailure = results.find(
+    (result): result is PromiseRejectedResult => result.status === "rejected",
+  );
+
+  if (firstFailure) {
+    p.setPageError(messageOf(firstFailure.reason));
+  }
+
+  // Without the profile we cannot confirm the admin session.
+  if (profileResult.status !== "fulfilled") {
+    return "failed";
+  }
+
+  const profile = (profileResult.value as { profile: AdminProfile }).profile;
+
+  p.setAdminProfile(profile);
+
+  p.setProfileDraft({
+    name: profile.name,
+    phone: profile.phone,
+    email: profile.email,
+    image: profile.image,
+  });
+
+  if (batchesResult.status === "fulfilled") {
+    const nextBatches = batchesResult.value as Batch[];
+    const activeBatches = nextBatches.filter((item) => item.active);
+
+    const chosen =
+      activeBatches.find((item) => item._id === p.batchId) ??
+      activeBatches[0] ??
+      nextBatches[0];
+
+    p.setBatchId(chosen?._id ?? "");
+  }
+
+  return "ready";
+}
+
+export default function useAdminWorkspace(props: Props) {
   const router = useRouter();
 
-  const loadWorkspace = async (selectedDate = todayISO()) => {
-    setLoading(true);
-    setPageError("");
+  // Always holds the latest props, so the start-up effect runs only once
+  // and never needs a lint-disable comment.
+  const latest = useRef(props);
 
-    try {
-      const [, , profileResult] = await Promise.all([
-        refreshBatches(),
-        refreshStudents(),
-        api("/auth/admin/profile"),
-        loadDashboardFees(selectedDate),
-      ]);
+  useEffect(() => {
+    latest.current = props;
+  });
 
-      const nextBatches = await refreshBatches();
+  // Manual reload of the dashboard data (not used at start-up).
+  const loadWorkspace = useCallback(
+    async (selectedDate = todayISO()) => {
+      const p = latest.current;
 
-      const activeBatches = nextBatches.filter((item) => item.active);
+      p.setLoading(true);
+      p.setPageError("");
 
-      const chosen =
-        activeBatches.find((item) => item._id === batchId) ??
-        activeBatches[0] ??
-        nextBatches[0];
+      try {
+        const results = await requestWorkspaceData(p, selectedDate);
+        const outcome = applyWorkspaceData(results, latest.current);
 
-      setBatchId(chosen?._id ?? "");
-
-      if (chosen) {
-        await loadAttendance(chosen._id, selectedDate);
+        if (outcome === "signed-out") {
+          p.setAuthenticated(false);
+          p.clearRole();
+          router.replace("/admin/login");
+        }
+      } finally {
+        p.setLoading(false);
       }
-
-      const profile = profileResult.profile as AdminProfile;
-
-      setAdminProfile(profile);
-
-      setProfileDraft({
-        name: profile.name,
-        phone: profile.phone,
-        email: profile.email,
-        image: profile.image,
-      });
-    } catch (error) {
-      setPageError(
-        error instanceof Error
-          ? error.message
-          : "Could not load the workspace.",
-      );
-    } finally {
-      setLoading(false);
-
-      // Release the initial screen only after workspace loading finishes.
-      setAuthChecking(false);
-    }
-  };
+    },
+    [router],
+  );
 
   useEffect(() => {
     let active = true;
@@ -126,9 +171,11 @@ export default function useAdminWorkspace({
     const dateTimer = window.setTimeout(() => {
       if (!active) return;
 
-      setDate(initialDate);
+      const p = latest.current;
 
-      setTodayLabel(
+      p.setDate(initialDate);
+
+      p.setTodayLabel(
         new Date().toLocaleDateString("en-IN", {
           weekday: "long",
           day: "numeric",
@@ -139,7 +186,7 @@ export default function useAdminWorkspace({
 
       const currentHour = new Date().getHours();
 
-      setGreeting(
+      p.setGreeting(
         currentHour < 12
           ? "Good Morning"
           : currentHour < 18
@@ -148,60 +195,38 @@ export default function useAdminWorkspace({
       );
     }, 0);
 
-    const redirectToLogin = () => {
+    const start = async () => {
+      const results = await requestWorkspaceData(latest.current, initialDate);
+
       if (!active) return;
 
-      setAuthenticated(false);
-      clearRole();
-      router.replace("/admin/login");
-    };
+      const p = latest.current;
+      const outcome = applyWorkspaceData(results, p);
 
-    const checkSession = async () => {
-      try {
-        const response = await fetch(`${API}/auth/session`, {
-          method: "GET",
-          credentials: "include",
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache",
-          },
-        });
-
-        if (!active) return;
-
-        if (!response.ok) {
-          redirectToLogin();
-          return;
-        }
-
-        const session = await response.json();
-
-        if (!active) return;
-
-        if (session?.user?.role !== "admin") {
-          redirectToLogin();
-          return;
-        }
-
-        activateRole("admin");
-        setAuthenticated(true);
-
-        // Keep authChecking true until all initial dashboard data is ready.
-        await loadWorkspace(initialDate);
-      } catch {
-        redirectToLogin();
+      if (outcome === "signed-out") {
+        p.setAuthenticated(false);
+        p.clearRole();
+        router.replace("/admin/login");
+        return;
       }
+
+      if (outcome === "ready") {
+        p.activateRole("admin");
+        p.setAuthenticated(true);
+      }
+
+      // "failed": the error message is already shown on the page.
+      p.setLoading(false);
+      p.setAuthChecking(false);
     };
 
-    void checkSession();
+    void start();
 
     return () => {
       active = false;
       window.clearTimeout(dateTimer);
     };
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activateRole, clearRole, router]);
+  }, [router]);
 
   return {
     loadWorkspace,

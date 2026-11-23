@@ -9,69 +9,89 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 
 import { useTheme } from "@/components/ThemeProvider";
+import { API } from "@/lib/api";
 import StudentSidebar from "./StudentSidebar";
 import StudentTopbar from "./StudentTopbar";
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
-
 const LOGIN_PATH = "/student/login";
+const REQUEST_TIMEOUT_MS = 20_000;
 
 interface StudentShellProps {
   children: ReactNode;
 }
 
-interface SessionResult {
-  role: "admin" | "student" | null;
-}
+type Role = "admin" | "student" | null;
+
+type SessionResult = {
+  role: Role;
+  failed: boolean;
+};
+
+type StudentProfile = {
+  name?: string;
+  profilePhoto?: string;
+};
+
+type DashboardResponse = {
+  student?: StudentProfile;
+  data?: { student?: StudentProfile };
+};
 
 let sessionPromise: Promise<SessionResult> | null = null;
-let dashboardPromise: Promise<unknown> | null = null;
+let dashboardPromise: Promise<DashboardResponse> | null = null;
 
 function getStudentSession(): Promise<SessionResult> {
   if (!sessionPromise) {
-    sessionPromise = fetch(`${API}/auth/session`, {
+    const request: Promise<SessionResult> = fetch(`${API}/auth/session`, {
       method: "GET",
       credentials: "include",
       cache: "no-store",
-      headers: {
-        "Cache-Control": "no-cache",
-      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
-      .then(async (response) => {
+      .then(async (response): Promise<SessionResult> => {
         if (!response.ok) {
-          return { role: null };
+          return { role: null, failed: response.status >= 500 };
         }
 
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         const role = data?.user?.role;
 
         return {
-          role:
-            role === "student" || role === "admin"
-              ? role
-              : null,
+          role: role === "student" || role === "admin" ? role : null,
+          failed: false,
         };
       })
-      .catch(() => ({ role: null }));
+      .catch((): SessionResult => ({ role: null, failed: true }))
+      .then((result) => {
+        // Only a confirmed student session is cached. Anything else is
+        // checked again next time, so a login right after a failed check works.
+        if (result.role !== "student" && sessionPromise === request) {
+          sessionPromise = null;
+        }
+
+        return result;
+      });
+
+    sessionPromise = request;
   }
 
   return sessionPromise;
 }
 
-function loadStudentDashboard() {
+function loadStudentDashboard(): Promise<DashboardResponse> {
   if (!dashboardPromise) {
     dashboardPromise = fetch(`${API}/student/dashboard`, {
       method: "GET",
       credentials: "include",
       cache: "no-store",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error("Unable to load student profile.");
         }
 
-        return response.json();
+        return (await response.json()) as DashboardResponse;
       })
       .catch((error) => {
         dashboardPromise = null;
@@ -87,9 +107,7 @@ export function clearStudentSessionCache() {
   dashboardPromise = null;
 }
 
-export default function StudentShell({
-  children,
-}: StudentShellProps) {
+export default function StudentShell({ children }: StudentShellProps) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -98,68 +116,50 @@ export default function StudentShell({
   const isLoginPage = pathname === LOGIN_PATH;
 
   const [authorized, setAuthorized] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [studentName, setStudentName] = useState("Student");
   const [studentPhoto, setStudentPhoto] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // Login page needs no session check.
     if (isLoginPage) return;
 
     let mounted = true;
 
     async function verifySession() {
-      try {
-        const session = await getStudentSession();
+      const session = await getStudentSession();
 
-        if (!mounted) return;
+      if (!mounted) return;
 
-        if (session.role !== "student") {
-          setAuthorized(false);
-          clearRole();
-
-          router.replace(
-            session.role === "admin" ? "/admin" : LOGIN_PATH,
-          );
-
-          return;
-        }
-
-        activateRole("student");
-        setAuthorized(true);
-
-        // Profile information is fetched only once per app session.
-        try {
-          const dashboard = (await loadStudentDashboard()) as {
-            student?: {
-              name?: string;
-              profilePhoto?: string;
-            };
-            data?: {
-              student?: {
-                name?: string;
-                profilePhoto?: string;
-              };
-            };
-          };
-
-          if (!mounted) return;
-
-          const student =
-            dashboard.student ?? dashboard.data?.student;
-
-          setStudentName(student?.name ?? "Student");
-          setStudentPhoto(student?.profilePhoto ?? "");
-        } catch {
-          // Dashboard pages handle their own API errors.
-        }
-      } catch {
-        if (!mounted) return;
-
+      if (session.failed) {
         setAuthorized(false);
-        clearStudentSessionCache();
+        setFailed(true);
+        return;
+      }
+
+      if (session.role !== "student") {
+        setAuthorized(false);
         clearRole();
-        router.replace(LOGIN_PATH);
+        router.replace(session.role === "admin" ? "/admin" : LOGIN_PATH);
+        return;
+      }
+
+      activateRole("student");
+      setFailed(false);
+      setAuthorized(true);
+
+      try {
+        const dashboard = await loadStudentDashboard();
+
+        if (!mounted) return;
+
+        const student = dashboard.student ?? dashboard.data?.student;
+
+        setStudentName(student?.name ?? "Student");
+        setStudentPhoto(student?.profilePhoto ?? "");
+      } catch {
+        // Each page shows its own error if its data cannot be loaded.
       }
     }
 
@@ -168,7 +168,13 @@ export default function StudentShell({
     return () => {
       mounted = false;
     };
-  }, [isLoginPage, activateRole, clearRole, router]);
+  }, [isLoginPage, attempt, activateRole, clearRole, router]);
+
+  const retry = () => {
+    clearStudentSessionCache();
+    setFailed(false);
+    setAttempt((current) => current + 1);
+  };
 
   const handleLogout = useCallback(async () => {
     try {
@@ -176,23 +182,48 @@ export default function StudentShell({
         method: "POST",
         credentials: "include",
         cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
       });
     } catch {
-      // Continue local logout if the request fails.
-    } finally {
-      clearStudentSessionCache();
-      clearRole();
-      setAuthorized(false);
-      setStudentName("Student");
-      setStudentPhoto("");
-
-      router.replace(LOGIN_PATH);
-      router.refresh();
+      window.alert(
+        "Could not log out. Please check your internet connection and try again.",
+      );
+      return;
     }
-  }, [clearRole, router]);
+
+    clearStudentSessionCache();
+    clearRole();
+
+    window.location.replace(LOGIN_PATH);
+  }, [clearRole]);
 
   if (isLoginPage) {
     return <>{children}</>;
+  }
+
+  if (failed) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 dark:bg-slate-950">
+        <div className="flex max-w-sm flex-col items-center gap-4 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-600 text-3xl text-white shadow-lg shadow-violet-600/20">
+            ✳
+          </div>
+
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            Unable to connect to the server. Please check your internet
+            connection and try again.
+          </p>
+
+          <button
+            type="button"
+            onClick={retry}
+            className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-700"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!authorized) {

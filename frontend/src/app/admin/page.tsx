@@ -1,12 +1,11 @@
-﻿
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
-import { api } from "@/lib/api";
+import { api, API } from "@/lib/api";
 
 import useAdminAttendance from "@/components/admin/hooks/useAdminAttendance";
 import useAdminDashboard from "@/components/admin/hooks/useAdminDashboard";
@@ -173,7 +172,6 @@ export default function Home() {
     refreshBatches,
     refreshStudents,
     loadDashboardFees,
-    loadAttendance,
 
     setBatchId,
     setDate,
@@ -192,6 +190,8 @@ export default function Home() {
     clearRole,
   });
 
+  // Opens a section (and a student editor) from a link such as
+  // /admin?section=Students&edit=<id>.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const requestedSection = params.get("section");
@@ -249,8 +249,12 @@ export default function Home() {
     }
   }, []);
 
+  // Attendance is loaded only while the Attendance section is open, so the
+  // dashboard opens faster and attendance is never fetched twice.
   useEffect(() => {
-    if (!authenticated || !batchId || !date) return;
+    if (!authenticated || section !== "Attendance" || !batchId || !date) {
+      return;
+    }
 
     const timer = window.setTimeout(() => {
       void loadAttendance(batchId, date).catch((error: Error) =>
@@ -259,7 +263,7 @@ export default function Home() {
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [date, batchId, authenticated, loadAttendance]);
+  }, [date, batchId, authenticated, section, loadAttendance]);
 
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
@@ -324,10 +328,6 @@ export default function Home() {
 
       setBatchModal(false);
       setBatchId(result.batch._id);
-
-      if (date) {
-        await loadAttendance(result.batch._id, date);
-      }
 
       setNotice(editingBatch ? "Batch updated." : "Batch created.");
     } catch (error) {
@@ -453,26 +453,34 @@ export default function Home() {
   };
 
   const handleLogout = async () => {
-  setPageError("");
-  setNotice("");
+    setPageError("");
+    setNotice("");
 
-  try {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api"}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-      cache: "no-store",
-    });
-  } catch {
-    // Continue local logout even if the API request fails.
-  } finally {
-    // Keep the loading screen visible until login navigation completes.
-    setAuthChecking(true);
+    try {
+      // Any reply from the server (even 401 for an expired session) means
+      // we can safely leave. Only a network failure is treated as an error.
+      await fetch(`${API}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch {
+      // The server was not reached, so the session cookie is still valid.
+      // Stay signed in and tell the admin instead of pretending to log out.
+      setPageError(
+        "Could not log out. Please check your internet connection and try again.",
+      );
+      return;
+    }
+
     clearRole();
 
-    router.replace("/admin/login");
-    router.refresh();
-  }
-};
+    // A full page load clears all in-memory state, so the login page
+    // always opens clean (empty form, normal "Sign in" button).
+    window.location.replace("/admin/login");
+  };
+
   return (
     <main
       className={`min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 ${
@@ -503,36 +511,36 @@ export default function Home() {
           />
 
           <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
-              {![
-  "Dashboard",
-  "Fees",
-  "Notices",
-  "Students",
-  "Classes & Batches",
-  "Tests & Results",
-  "Settings",
-].includes(section) && (
-  <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-    {section === "Attendance" && (
-      <>
-        <div className="flex w-full items-center justify-center">
-          <h1 className="text-center text-xl font-bold text-gray-900 dark:text-white">
-            Take attendance
-          </h1>
-        </div>
+            {![
+              "Dashboard",
+              "Fees",
+              "Notices",
+              "Students",
+              "Classes & Batches",
+              "Tests & Results",
+              "Settings",
+            ].includes(section) && (
+              <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                {section === "Attendance" && (
+                  <>
+                    <div className="flex w-full items-center justify-center">
+                      <h1 className="text-center text-xl font-bold text-gray-900 dark:text-white">
+                        Take attendance
+                      </h1>
+                    </div>
 
-        <button
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
-          onClick={() =>
-            document.getElementById("attendance-date")?.focus()
-          }
-        >
-          ▦ Today ⌄
-        </button>
-      </>
-    )}
-  </div>
-)}
+                    <button
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700"
+                      onClick={() =>
+                        document.getElementById("attendance-date")?.focus()
+                      }
+                    >
+                      ▦ Today ⌄
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
             {pageError && (
               <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">

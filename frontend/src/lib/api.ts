@@ -8,7 +8,7 @@ const ERROR_MESSAGES = {
     "The server is taking too long to respond. Please check your internet connection and try again.",
   network:
     "Unable to connect to the server. Please check your internet connection and try again.",
-  unauthorized: "Your session has expired. Please log in again.",
+  unauthorized: "Your session has expired. Please sign in again.",
   forbidden: "You don't have permission to do this.",
   tooManyRequests: "Too many attempts. Please wait a few minutes and try again.",
   server: "Something went wrong on our side. Please try again in a moment.",
@@ -66,6 +66,41 @@ function fallbackMessage(status: number) {
   return ERROR_MESSAGES.generic;
 }
 
+/**
+ * True only when the server says the SESSION is invalid or expired.
+ * A 401 for another reason (for example a wrong current password while
+ * changing the password) must NOT sign the user out.
+ */
+function isSessionExpired(status: number, data: { error?: unknown }) {
+  if (status !== 401) return false;
+
+  const message = typeof data.error === "string" ? data.error : "";
+
+  return /sign in|session/i.test(message);
+}
+
+let redirectingToLogin = false;
+
+/**
+ * Sends the user to the correct login page with a full page load, so no old
+ * state (forms, cached data) survives. Runs once, and never on pages where
+ * the user is already signing in or resetting a password.
+ */
+function redirectToLogin() {
+  if (typeof window === "undefined" || redirectingToLogin) return;
+
+  const path = window.location.pathname;
+
+  if (path.endsWith("/login") || path.endsWith("/forgot-password")) return;
+
+  redirectingToLogin = true;
+  clearStudentApiCache();
+
+  window.location.replace(
+    path.startsWith("/student") ? "/student/login" : "/admin/login",
+  );
+}
+
 export async function api(path: string, init: RequestInit = {}) {
   const method = (init.method ?? "GET").toUpperCase();
   const shouldCache = isCacheableStudentRequest(path, method);
@@ -116,8 +151,16 @@ export async function api(path: string, init: RequestInit = {}) {
     }
 
     if (!response.ok) {
+      if (isSessionExpired(response.status, data)) {
+        redirectToLogin();
+      }
+
       throw Object.assign(
-        new Error(data.error ?? fallbackMessage(response.status)),
+        new Error(
+          typeof data.error === "string" && data.error
+            ? data.error
+            : fallbackMessage(response.status),
+        ),
         { details: data, status: response.status },
       );
     }

@@ -2,12 +2,28 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/components/ThemeProvider";
+import { API } from "@/lib/api";
 
-const API =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+const REQUEST_TIMEOUT_MS = 20_000;
+const REDIRECT_GUARD_MS = 15_000;
+
+const MESSAGES = {
+  timeout:
+    "The server is taking too long to respond. Please check your internet connection and try again.",
+  network:
+    "Unable to connect to the server. Please check your internet connection and try again.",
+  tooManyAttempts:
+    "Too many login attempts. Please wait a few minutes before trying again.",
+  invalidCredentials:
+    "Incorrect mobile number or password. Please try again.",
+  server: "Something went wrong on our side. Please try again in a moment.",
+  generic: "Sign in failed. Please try again.",
+  redirectStuck:
+    "You are signed in, but the dashboard is taking too long to open. Please press Sign in again.",
+};
 
 type Role = "admin" | "student";
 
@@ -83,6 +99,22 @@ function Icon({
   }
 }
 
+/** fetch with a timeout and friendly network errors. */
+async function requestWithTimeout(url: string, init: RequestInit) {
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    const isTimeout =
+      error instanceof DOMException &&
+      (error.name === "TimeoutError" || error.name === "AbortError");
+
+    throw new Error(isTimeout ? MESSAGES.timeout : MESSAGES.network);
+  }
+}
+
 export default function RoleLogin({ role }: { role: Role }) {
   const router = useRouter();
   const { activateRole, clearRole } = useTheme();
@@ -94,44 +126,59 @@ export default function RoleLogin({ role }: { role: Role }) {
   const [loading, setLoading] = useState(false);
   const [showStudentHelp, setShowStudentHelp] = useState(false);
 
-  const admin = role === "admin";
+  // Blocks a second submit and a second redirect.
+  const redirectingRef = useRef(false);
+  const guardTimerRef = useRef<number | null>(null);
 
+  const admin = role === "admin";
+  const target = admin ? "/admin" : "/student";
+
+  // Load the dashboard in the background so it opens faster after login.
+  useEffect(() => {
+    router.prefetch(target);
+  }, [router, target]);
+
+  // Clears the "dashboard is not opening" timer when the page goes away.
+  useEffect(() => {
+    return () => {
+      if (guardTimerRef.current !== null) {
+        window.clearTimeout(guardTimerRef.current);
+        guardTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Already signed in? Go straight to the dashboard.
   useEffect(() => {
     let mounted = true;
 
     async function checkExistingSession() {
       try {
-        const response = await fetch(`${API}/auth/session`, {
+        const response = await requestWithTimeout(`${API}/auth/session`, {
           method: "GET",
           credentials: "include",
           cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache",
-          },
         });
 
+        if (!mounted) return;
+
         if (!response.ok) {
-          if (mounted) clearRole();
+          clearRole();
           return;
         }
 
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         const activeRole = data?.user?.role;
 
-        if (
-          activeRole !== "admin" &&
-          activeRole !== "student"
-        ) {
-          if (mounted) clearRole();
+        if (activeRole !== "admin" && activeRole !== "student") {
+          clearRole();
           return;
         }
 
-        if (activeRole === role && mounted) {
+        if (activeRole === role && !redirectingRef.current) {
+          redirectingRef.current = true;
           activateRole(activeRole);
-          router.replace(
-            activeRole === "admin" ? "/admin" : "/student",
-          );
-          router.refresh();
+          router.replace(activeRole === "admin" ? "/admin" : "/student");
         }
       } catch {
         if (mounted) clearRole();
@@ -140,8 +187,10 @@ export default function RoleLogin({ role }: { role: Role }) {
 
     void checkExistingSession();
 
+    // Browser back button can restore a cached copy of this page.
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
+        redirectingRef.current = false;
         setIdentifier("");
         setPassword("");
         setError("");
@@ -159,6 +208,7 @@ export default function RoleLogin({ role }: { role: Role }) {
     };
   }, [role, activateRole, clearRole, router]);
 
+  // Auto-hide the student help popup.
   useEffect(() => {
     if (!showStudentHelp) return;
 
@@ -172,18 +222,20 @@ export default function RoleLogin({ role }: { role: Role }) {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (loading || redirectingRef.current) return;
+
     setError("");
     setShowStudentHelp(false);
     setLoading(true);
 
+    let loginSucceeded = false;
+
     try {
-      const response = await fetch(`${API}/auth/login`, {
+      const response = await requestWithTimeout(`${API}/auth/login`, {
         method: "POST",
         credentials: "include",
         cache: "no-store",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           identifier: identifier.trim(),
           password,
@@ -195,40 +247,47 @@ export default function RoleLogin({ role }: { role: Role }) {
 
       if (!response.ok) {
         if (response.status === 429) {
-          throw new Error(
-            "Too many login attempts. Please wait a few minutes before trying again.",
-          );
+          throw new Error(MESSAGES.tooManyAttempts);
         }
 
+        if (response.status >= 500) {
+          throw new Error(MESSAGES.server);
+        }
+
+        // 400 / 401 / 403: the server's message is already user friendly.
         throw new Error(
           data.error ??
             data.message ??
-            `Sign in failed (HTTP ${response.status}). Please try again.`,
+            (response.status === 401
+              ? MESSAGES.invalidCredentials
+              : MESSAGES.generic),
         );
       }
 
+      // Success: keep the form as it is and stay in the "Signing in..."
+      // state until the dashboard opens (no empty-field flash).
+      loginSucceeded = true;
+      redirectingRef.current = true;
       activateRole(role);
+      router.replace(target);
 
-      setIdentifier("");
-      setPassword("");
-      setShowPassword(false);
-      setError("");
-
-      router.replace(admin ? "/admin" : "/student");
-      router.refresh();
+      // Safety net: if the dashboard never opens, free the form again.
+      guardTimerRef.current = window.setTimeout(() => {
+        redirectingRef.current = false;
+        setLoading(false);
+        setError(MESSAGES.redirectStuck);
+      }, REDIRECT_GUARD_MS);
     } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Sign in failed. Please try again.",
-      );
+      setError(cause instanceof Error ? cause.message : MESSAGES.generic);
     } finally {
-      setLoading(false);
+      if (!loginSucceeded) {
+        setLoading(false);
+      }
     }
   };
 
   const inputClass =
-    "h-[54px] w-full rounded-xl border border-[#e7e2f1] bg-white pl-[52px] pr-4 text-[15px] text-[#20264f] outline-none transition duration-200 placeholder:text-[#a09eb2] hover:border-[#d5c8f5] focus:border-[#7950ed] focus:ring-4 focus:ring-[#7950ed]/10";
+    "h-[54px] w-full rounded-xl border border-[#e7e2f1] bg-white pl-[52px] pr-4 text-[15px] text-[#20264f] outline-none transition duration-200 placeholder:text-[#a09eb2] hover:border-[#d5c8f5] focus:border-[#7950ed] focus:ring-4 focus:ring-[#7950ed]/10 read-only:bg-[#faf9fd]";
 
   return (
     <main className="relative isolate flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-[#fcfbff] via-[#f8f5ff] to-[#f1eaff] px-4 text-[#111b49] sm:px-6 lg:px-8">
@@ -348,6 +407,7 @@ export default function RoleLogin({ role }: { role: Role }) {
             <form
               className="grid gap-[18px]"
               onSubmit={(event) => void submit(event)}
+              aria-busy={loading}
             >
               <label
                 htmlFor="login-mobile"
@@ -368,13 +428,17 @@ export default function RoleLogin({ role }: { role: Role }) {
                     id="login-mobile"
                     name="identifier"
                     className={inputClass}
-                    autoComplete="off"
+                    autoComplete="username"
                     inputMode="numeric"
                     maxLength={15}
                     required
+                    readOnly={loading}
                     type="tel"
                     value={identifier}
-                    onChange={(event) => setIdentifier(event.target.value)}
+                    onChange={(event) => {
+                      setIdentifier(event.target.value);
+                      if (error) setError("");
+                    }}
                     placeholder="Enter mobile number"
                   />
                 </span>
@@ -399,11 +463,15 @@ export default function RoleLogin({ role }: { role: Role }) {
                     id="login-password"
                     name="password"
                     className={`${inputClass} pr-[52px]`}
-                    autoComplete="off"
+                    autoComplete="current-password"
                     required
+                    readOnly={loading}
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      if (error) setError("");
+                    }}
                     placeholder="Enter your password"
                   />
 

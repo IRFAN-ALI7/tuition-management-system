@@ -23,26 +23,34 @@ import {
 
 import { login, logout } from "../controllers/auth.controller";
 
-import {
-  requireAuth,
-  requireAdmin,
-} from "../middleware/authenticate";
+import { requireAuth, requireAdmin } from "../middleware/authenticate";
 
 const router = Router();
 
-// Apply the login-attempt limit only to login requests.
-// Session checks, logout and profile requests do not consume this limit.
+// Login attempt limit.
+// - Only FAILED attempts are counted, so a successful login, logout and
+//   login again never uses up the limit.
+// - 20 failed attempts per 15 minutes per IP is enough for real users
+//   (several students may share one Wi-Fi) and still stops password guessing.
 const loginRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 30,
+  limit: 20,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_request, response) => {
     response.status(429).json({
-      error: "Too many login attempts. Please wait a few minutes before trying again.",
+      error:
+        "Too many login attempts. Please wait a few minutes before trying again.",
     });
   },
 });
+
+// ADMIN AND STUDENT LOGIN
+router.post("/login", loginRateLimit, login);
+
+// LOGOUT
+router.post("/logout", requireAuth, logout);
 
 // ADMIN FORGOT PASSWORD: REQUEST OTP
 router.post(
@@ -73,20 +81,10 @@ router.post(
 );
 
 // ADMIN PROFILE
-router.get(
-  "/admin/profile",
-  requireAuth,
-  requireAdmin,
-  getAdminProfile,
-);
+router.get("/admin/profile", requireAuth, requireAdmin, getAdminProfile);
 
 // UPDATE ADMIN PROFILE - FINAL SAVE ONLY
-router.patch(
-  "/admin/profile",
-  requireAuth,
-  requireAdmin,
-  updateAdminProfile,
-);
+router.patch("/admin/profile", requireAuth, requireAdmin, updateAdminProfile);
 
 // REQUEST OTP FOR NEW PROFILE EMAIL
 router.post(
@@ -95,22 +93,6 @@ router.post(
   requireAdmin,
   profileOtpLimit,
   requestAdminProfileEmailOtp,
-);
-
-// CANCEL PENDING PROFILE EMAIL VERIFICATION
-router.post(
-  "/admin/profile/email/cancel",
-  requireAuth,
-  requireAdmin,
-  cancelAdminProfileEmailVerification,
-);
-
-// CHANGE ADMIN PASSWORD
-router.post(
-  "/admin/change-password",
-  requireAuth,
-  requireAdmin,
-  changeAdminPassword,
 );
 
 // RESEND ADMIN PROFILE EMAIL VERIFICATION OTP
@@ -131,10 +113,20 @@ router.post(
   verifyAdminProfileEmail,
 );
 
-// ADMIN AND STUDENT LOGIN
-router.post("/login", loginRateLimit, login);
+// CANCEL PENDING PROFILE EMAIL VERIFICATION
+router.post(
+  "/admin/profile/email/cancel",
+  requireAuth,
+  requireAdmin,
+  cancelAdminProfileEmailVerification,
+);
 
-// LOGOUT
-router.post("/logout", requireAuth, logout);
+// CHANGE ADMIN PASSWORD
+router.post(
+  "/admin/change-password",
+  requireAuth,
+  requireAdmin,
+  changeAdminPassword,
+);
 
 export default router;
